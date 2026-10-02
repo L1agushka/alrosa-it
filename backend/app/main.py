@@ -3,6 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from .database import engine, Base, SessionLocal
 from .seed import seed_database
+from fastapi import UploadFile, File, Form, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .database import get_db
+from .services import process_audit_file
 
 # Создание таблиц
 Base.metadata.create_all(bind=engine)
@@ -46,3 +50,26 @@ def get_mock_dashboard():
             "wave_3_complex": 34
         }
     }
+
+@app.post("/api/v1/audit/upload")
+async def upload_audit_file(
+    file: UploadFile = File(...),
+    target_os: str = Form("Astra Linux Special Edition 1.7"),
+    db: Session = Depends(get_db)
+):
+    """
+    Загрузка CSV/Excel реестра рабочих мест и выполнение аудита совместимости
+    """
+    try:
+        contents = await file.read()
+        report = process_audit_file(
+            file_bytes=contents, 
+            filename=file.filename, 
+            target_os_name=target_os, 
+            db=db
+        )
+        return report
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
