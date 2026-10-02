@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table, DateTime, JSON, Text
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from .database import Base
 
 # Связующая таблица АРМ <-> Установленный софт
@@ -63,7 +64,17 @@ class Workstation(Base):
     disk_gb = Column(Integer, nullable=False)
 
     software = relationship(
-        "SoftwareCatalog", 
-        secondary=workstation_software, 
+        "SoftwareCatalog",
+        secondary=workstation_software,
         backref="workstations"
     )
+
+class AuditSession(Base):
+    """История сессий аудита для отслеживания загрузок"""
+    __tablename__ = "audit_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(255), nullable=False)
+    target_os = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    summary = Column(JSON, nullable=True)  # Сводная статистика результата

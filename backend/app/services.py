@@ -75,7 +75,7 @@ def process_audit_file(
         detected_blockers = []
         for soft in software_list:
             if soft in blockers_map:
-                detected_blockers.append(f"{soft} ({blockers_map[soft]})")
+                detected_blockers.append(f"{soft} → {blockers_map[soft]}")
 
         # Принятие решения по статусу и волне
         if detected_blockers:
@@ -103,6 +103,16 @@ def process_audit_file(
             "hardware_issues": hw_issues,
             "blocking_software": detected_blockers
         })
+
+    # 4. Сохраняем сессию аудита
+    from .models import AuditSession
+    audit_session = AuditSession(
+        filename=filename,
+        target_os=target_os_name,
+        summary=summary
+    )
+    db.add(audit_session)
+    db.commit()
 
     return {
         "target_os": target_os.name,

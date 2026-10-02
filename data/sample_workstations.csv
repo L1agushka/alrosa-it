@@ -1,0 +1,26 @@
+workstation_id,department,user_fullname,current_os,cpu_cores,ram_gb,disk_gb,installed_software
+WS-001,Бухгалтерия,Иванова Анна Сергеевна,Windows 10 Pro,4,8,256,Microsoft Office 2019;Google Chrome;1С:Предприятие 8.3;КриптоПро CSP
+WS-002,ИТ отдел,Петров Дмитрий Владимирович,Windows 11 Pro,8,16,512,Visual Studio Code;Google Chrome;Telegram Desktop;DBeaver
+WS-003,Отдел продаж,Сидорова Елена Павловна,Windows 10 Home,2,4,128,Microsoft Office 2016;Google Chrome;Skype for Business
+WS-004,Конструкторский отдел,Козлов Игорь Анатольевич,Windows 10 Pro,4,8,512,AutoCAD;Microsoft Office 2019;Google Chrome
+WS-005,Маркетинг,Морозова Ольга Игоревна,Windows 10 Pro,4,8,256,Adobe Photoshop;Adobe Illustrator;Google Chrome;Microsoft Office 2019
+WS-006,Финансовый отдел,Васильев Сергей Николаевич,Windows 10 Pro,4,8,256,Microsoft Office 2019;1С:Предприятие 8.3;КриптоПро CSP;Mozilla Firefox
+WS-007,HR отдел,Новикова Мария Андреевна,Windows 10 Home,2,4,128,Microsoft Office 2016;Google Chrome;Telegram Desktop
+WS-008,ИТ отдел,Смирнов Алексей Витальевич,Windows 11 Pro,8,32,1024,Visual Studio Code;IntelliJ IDEA;PyCharm;Docker;Google Chrome
+WS-009,Производственный отдел,Федоров Николай Петрович,Windows 10 Pro,4,4,256,КОМПАС-3D;Microsoft Office 2016;Google Chrome
+WS-010,Логистика,Павлова Татьяна Дмитриевна,Windows 10 Pro,4,8,256,Microsoft Office 2019;Google Chrome;1С:Предприятие 8.3
+WS-011,Бухгалтерия,Григорьева Светлана Юрьевна,Windows 10 Pro,4,8,256,Microsoft Office 2019;1С:Предприятие 8.3;КриптоПро CSP;Google Chrome
+WS-012,Конструкторский отдел,Романов Виктор Сергеевич,Windows 10 Pro,8,16,512,SolidWorks;AutoCAD;Microsoft Office 2019;Google Chrome
+WS-013,Отдел продаж,Кузнецова Ирина Владимировна,Windows 10 Home,2,4,128,Microsoft Office 2016;Google Chrome;Microsoft Teams
+WS-014,ИТ отдел,Лебедев Артем Игоревич,Windows 11 Pro,8,16,512,Visual Studio Code;DBeaver;Google Chrome;Telegram Desktop
+WS-015,Секретариат,Волкова Наталья Александровна,Windows 10 Home,2,4,128,Microsoft Office 2016;Google Chrome
+WS-016,Юридический отдел,Соколов Андрей Петрович,Windows 10 Pro,4,8,256,Microsoft Office 2019;Adobe Acrobat Reader;Google Chrome
+WS-017,Маркетинг,Белова Екатерина Сергеевна,Windows 10 Pro,4,8,256,Adobe Photoshop;CorelDRAW;Microsoft Office 2019;Google Chrome
+WS-018,Финансовый отдел,Егоров Павел Николаевич,Windows 10 Pro,4,8,256,Microsoft Office 2019;1С:Предприятие 8.3;КриптоПро CSP
+WS-019,Производственный отдел,Медведев Дмитрий Александрович,Windows 10 Pro,4,8,512,КОМПАС-3D;nanoCAD;Microsoft Office 2016
+WS-020,Отдел закупок,Зайцева Людмила Викторовна,Windows 10 Pro,4,8,256,Microsoft Office 2019;SAP GUI;Google Chrome
+WS-021,ИТ отдел,Орлов Максим Сергеевич,Windows 11 Pro,8,32,1024,Visual Studio;SQL Server Management Studio;Google Chrome
+WS-022,Бухгалтерия,Королева Вера Павловна,Windows 10 Pro,4,8,256,Microsoft Office 2019;1С:Предприятие 8.3;КриптоПро CSP
+WS-023,Конструкторский отдел,Николаев Олег Викторович,Windows 10 Pro,8,16,512,AutoCAD;SolidWorks;Microsoft Office 2019
+WS-024,Отдел продаж,Ковалева Анастасия Андреевна,Windows 10 Home,2,4,128,Microsoft Office 2016;Skype for Business;Google Chrome
+WS-025,HR отдел,Попов Евгений Дмитриевич,Windows 10 Pro,4,8,256,Microsoft Office 2019;Microsoft Teams;Google Chrome

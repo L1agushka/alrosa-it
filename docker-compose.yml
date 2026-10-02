@@ -1,5 +1,3 @@
-
-
 services:
   db:
     image: postgres:16-alpine
@@ -31,6 +29,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: alrosa_audit_frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
 
 volumes:
   pgdata:
