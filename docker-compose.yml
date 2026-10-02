@@ -1,0 +1,36 @@
+
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: alrosa_audit_db
+    environment:
+      POSTGRES_USER: audit_user
+      POSTGRES_PASSWORD: audit_password
+      POSTGRES_DB: alrosa_audit
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audit_user -d alrosa_audit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: alrosa_audit_backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://audit_user:audit_password@db:5432/alrosa_audit
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
