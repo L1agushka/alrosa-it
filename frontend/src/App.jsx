@@ -12,13 +12,13 @@ export default function App() {
 
   useEffect(() => {
     // Загружаем список ОС
-    fetch('http://localhost:8000/api/v1/catalog/os-profiles')
+    fetch('/api/v1/catalog/os-profiles')
       .then(res => res.json())
       .then(setOsProfiles)
       .catch(console.error);
 
     // Загружаем статистику софта
-    fetch('http://localhost:8000/api/v1/stats/software-categories')
+    fetch('/api/v1/stats/software-categories')
       .then(res => res.json())
       .then(setSoftwareStats)
       .catch(console.error);
@@ -36,7 +36,7 @@ export default function App() {
     formData.append('target_os', targetOs);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/audit/upload', {
+      const res = await fetch('/api/v1/audit/upload', {
         method: 'POST',
         body: formData,
       });
@@ -456,7 +456,7 @@ function CatalogView() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/v1/catalog/compatibility')
+    fetch('/api/v1/catalog/compatibility')
       .then(res => res.json())
       .then(setCompatibility)
       .catch(console.error);
