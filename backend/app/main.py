@@ -10,10 +10,11 @@ from .services import process_audit_file
 from .models import AuditSession, TargetOSProfile, SoftwareCatalog, CompatibilityRule
 
 # Автосоздание таблиц
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         seed_database(db)
