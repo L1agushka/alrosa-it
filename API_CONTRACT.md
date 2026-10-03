@@ -1,17 +1,20 @@
-# 📡 Контракт API (Backend Documentation)
+# Документация API бэкенда (АЛРОСА ИТ)
 
-Базовый URL бэкенда при локальной разработке: `http://localhost:8000`  
-Интерактивная песочница Swagger (можно тыкать прямо в браузере): `http://localhost:8000/docs`
+* **Базовый URL бэкенда:** `http://localhost:8000`
+* **Интерактивная песочница Swagger:** `http://localhost:8000/docs`
+* **Готовый клиент во фронтенде:** `frontend/src/api/index.js` (рекомендуется вызывать методы через него)
 
 ---
 
-## 1. Справочники и метаданные
+## 1. Справочники
 
-### 🔹 Получить список целевых ОС
-* **URL:** `GET /api/v1/catalog/os-profiles`
-* **Назначение:** Заполнить выпадающий список выбора ОС на форме загрузки.
-* **Пример ответа:**
-```json
+### GET /api/v1/catalog/os-profiles
+Возвращает список доступных целевых операционных систем и их системные требования.
+Используется для заполнения выпадающего списка выбора ОС.
+
+Параметры: нет
+
+Пример ответа (200 OK):
 [
   {
     "id": 1,
@@ -28,14 +31,38 @@
     "min_disk_gb": 20
   }
 ]
-🔹 Получить матрицу совместимости софта
-URL: GET /api/v1/catalog/compatibility?target_os_id=1 (параметр опционален)
 
-Назначение: Отрисовать таблицу-справочник импортозамещения ПО.
+---
 
-Пример ответа:
+### GET /api/v1/catalog/software
+Возвращает нормализованный каталог программного обеспечения.
 
-JSON
+Параметры (Query):
+- `category` (string, optional) — фильтр по категории (например, "САПР", "Офисный пакет")
+
+Пример ответа (200 OK):
+[
+  {
+    "id": 1,
+    "name": "Microsoft Office 2016/2019",
+    "category": "Офисный пакет"
+  },
+  {
+    "id": 4,
+    "name": "AutoCAD",
+    "category": "САПР"
+  }
+]
+
+---
+
+### GET /api/v1/catalog/compatibility
+Возвращает матрицу совместимости ПО с целевыми ОС и отечественные аналоги.
+
+Параметры (Query):
+- `target_os_id` (integer, optional) — ID целевой ОС для фильтрации
+
+Пример ответа (200 OK):
 [
   {
     "software_name": "Microsoft Office 2016/2019",
@@ -44,7 +71,7 @@ JSON
     "status": "alternative_available",
     "domestic_alternative": "Р-7 Офис / МойОфис",
     "is_blocker": false,
-    "comment": "Штатная миграция, форматы docx/xlsx поддерживаются"
+    "comment": "Штатная миграция, документы docx/xlsx поддерживаются"
   },
   {
     "software_name": "AutoCAD",
@@ -53,24 +80,24 @@ JSON
     "status": "blocker",
     "domestic_alternative": "nanoCAD / Компас-3D",
     "is_blocker": true,
-    "comment": "Критический блокер: требует переобучения"
+    "comment": "Критический блокер: требует переобучения сотрудников"
   }
 ]
-2. Скоринг и аудит
-🔹 Загрузка файла реестра и запуск аудита
-URL: POST /api/v1/audit/upload
+
+---
+
+## 2. Скоринг и аудит
+
+### POST /api/v1/audit/upload
+Основной эндпоинт анализа инфраструктуры. Принимает файл выгрузки реестра рабочих мест, проводит аудит совместимости, вычисляет волны миграции и сохраняет исторический срез в базу.
 
 Content-Type: multipart/form-data
 
-Тело запроса:
+Параметры (Form Data):
+- `file` (File, required) — файл `.csv` или `.xlsx`
+- `target_os` (string, required) — название целевой ОС (например, "Astra Linux Special Edition 1.7")
 
-file: файл (.csv или .xlsx)
-
-target_os: строка, название ОС (например: "Astra Linux Special Edition 1.7")
-
-Пример ответа:
-
-JSON
+Пример ответа (200 OK):
 {
   "session_id": 1,
   "created_at": "2026-10-02T14:10:44",
@@ -97,6 +124,17 @@ JSON
       "blocking_software": []
     },
     {
+      "workstation_id": "WS-002",
+      "department": "Отдел кадров",
+      "user_fullname": "Петров В.И.",
+      "status": "upgrade_required",
+      "wave": 2,
+      "hardware_issues": [
+        "Недостаточно ОЗУ: 2 ГБ (требуется 4 ГБ)"
+      ],
+      "blocking_software": []
+    },
+    {
       "workstation_id": "WS-003",
       "department": "Проектный отдел",
       "user_fullname": "Смирнов К.А.",
@@ -110,12 +148,15 @@ JSON
     }
   ]
 }
-🔹 История аудитов (Срезы)
-URL: GET /api/v1/audit/history
 
-Назначение: Список ранее загруженных отчётов для истории и графиков динамики.
+---
 
-JSON
+### GET /api/v1/audit/history
+Возвращает список всех ранее проведённых сессий аудита.
+
+Параметры: нет
+
+Пример ответа (200 OK):
 [
   {
     "id": 1,
@@ -124,9 +165,51 @@ JSON
     "created_at": "2026-10-02T14:10:44",
     "summary": {
       "total": 150,
-      "ready": 80,
-      "upgrade_required": 40,
-      "blocked": 30
+      "ready": 92,
+      "upgrade_required": 24,
+      "blocked": 34
     }
   }
 ]
+
+---
+
+## 3. Аналитика и статистика
+
+### GET /api/v1/stats/software-categories
+Статистика распределения ПО по категориям для графиков и круговых диаграмм.
+
+Пример ответа (200 OK):
+[
+  { "category": "Офисный пакет", "count": 12 },
+  { "category": "САПР", "count": 4 },
+  { "category": "Браузер", "count": 6 }
+]
+
+---
+
+### GET /api/v1/stats/blockers
+Список критических блокирующих программ для конкретной ОС.
+
+Параметры (Query):
+- `target_os_name` (string, optional) — по умолчанию "Astra Linux Special Edition 1.7"
+
+Пример ответа (200 OK):
+{
+  "target_os": "Astra Linux Special Edition 1.7",
+  "total_blockers": 2,
+  "blockers": [
+    {
+      "name": "AutoCAD",
+      "category": "САПР",
+      "alternative": "nanoCAD / Компас-3D",
+      "comment": "Критический блокер: требует переобучения сотрудников"
+    },
+    {
+      "name": "Adobe Photoshop",
+      "category": "Графика",
+      "alternative": "GIMP / перенос на VDI",
+      "comment": "Прямых аналогов нет, миграция в 3-ю волну через VDI"
+    }
+  ]
+}
