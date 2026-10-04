@@ -41,3 +41,4 @@ export function Panel({ title, hint, action, children, className = "" }) {
     </div>
   );
 }
+
