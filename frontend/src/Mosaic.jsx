@@ -48,3 +48,4 @@ export default function Mosaic({ rows, scanKey, focus, onPick }) {
     </div>
   );
 }
+
