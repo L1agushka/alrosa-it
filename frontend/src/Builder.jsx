@@ -1,204 +1,282 @@
-import { useMemo, useState } from "react";
-import { Panel, StatusBadge } from "./ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { StatusBadge } from "./ui";
 
+/* ───────── данные ───────── */
 const parts = {
-  cpu: {
-    title: "Процессор",
-    items: [
-      { name: "Core i3-12100", short: "i3-12100", spec: "4 ядра · 4.3 ГГц", w: 60, perf: 36 },
-      { name: "Ryzen 5 5600", short: "R5 5600", spec: "6 ядер · 4.4 ГГц", w: 65, perf: 54 },
-      { name: "Core i7-13700K", short: "i7-13700K", spec: "16 ядер · 5.4 ГГц", w: 125, perf: 82 },
-      { name: "Ryzen 9 7950X", short: "R9 7950X", spec: "16 ядер · 5.7 ГГц", w: 170, perf: 98 },
-    ],
-  },
-  gpu: {
-    title: "Видеокарта",
-    items: [
-      { name: "Встроенная графика", short: "iGPU", spec: "Без отдельной карты", w: 0, perf: 8, fans: 0 },
-      { name: "GeForce GTX 1650", short: "GTX 1650", spec: "4 ГБ · 1 вентилятор", w: 75, perf: 34, fans: 1 },
-      { name: "GeForce RTX 4060", short: "RTX 4060", spec: "8 ГБ · 2 вентилятора", w: 115, perf: 62, fans: 2 },
-      { name: "GeForce RTX 4080", short: "RTX 4080", spec: "16 ГБ · 3 вентилятора", w: 320, perf: 94, fans: 3 },
-    ],
-  },
-  ram: {
-    title: "Оперативная память",
-    items: [
-      { name: "8 ГБ DDR4", short: "8 ГБ", spec: "1 × 8 ГБ", w: 5, perf: 20, gb: 8, sticks: 1 },
-      { name: "16 ГБ DDR4", short: "16 ГБ", spec: "2 × 8 ГБ", w: 10, perf: 45, gb: 16, sticks: 2 },
-      { name: "32 ГБ DDR5", short: "32 ГБ", spec: "2 × 16 ГБ", w: 12, perf: 72, gb: 32, sticks: 2 },
-      { name: "64 ГБ DDR5", short: "64 ГБ", spec: "4 × 16 ГБ", w: 24, perf: 95, gb: 64, sticks: 4 },
-    ],
-  },
+  cpu: { title: "Процессор", items: [
+    { name: "Core i3-12100", spec: "4 ядра · 4.3 ГГц", cores: 4, w: 60, perf: 36, price: 8900 },
+    { name: "Ryzen 5 5600", spec: "6 ядер · 4.4 ГГц", cores: 6, w: 65, perf: 54, price: 14500 },
+    { name: "Core i7-13700K", spec: "16 ядер · 5.4 ГГц", cores: 16, w: 125, perf: 82, price: 42900 },
+    { name: "Ryzen 9 7950X", spec: "16 ядер · 5.7 ГГц", cores: 16, w: 170, perf: 98, price: 61900 },
+  ] },
+  ram: { title: "Память", items: [
+    { name: "8 ГБ DDR4", spec: "1 × 8 ГБ", gb: 8, sticks: 1, w: 5, perf: 20, price: 2200 },
+    { name: "16 ГБ DDR4", spec: "2 × 8 ГБ", gb: 16, sticks: 2, w: 10, perf: 45, price: 4400 },
+    { name: "32 ГБ DDR5", spec: "2 × 16 ГБ", gb: 32, sticks: 2, w: 12, perf: 72, price: 9800 },
+    { name: "64 ГБ DDR5", spec: "4 × 16 ГБ", gb: 64, sticks: 4, w: 24, perf: 95, price: 21500 },
+  ] },
+  gpu: { title: "Видеокарта", items: [
+    { name: "Встроенная графика", spec: "Без отдельной карты", fans: 0, w: 0, perf: 8, price: 0 },
+    { name: "GeForce GTX 1650", spec: "4 ГБ · 1 вентилятор", fans: 1, w: 75, perf: 34, price: 17900 },
+    { name: "GeForce RTX 4060", spec: "8 ГБ · 2 вентилятора", fans: 2, w: 115, perf: 62, price: 32900 },
+    { name: "GeForce RTX 4080", spec: "16 ГБ · 3 вентилятора", fans: 3, w: 320, perf: 94, price: 109900 },
+  ] },
 };
+const tabs = ["cpu", "ram", "gpu"];
+const LIFT = { cpu: 105, ram: 72, gpu: 48, psu: 26 };
 
-/* ───────── векторный ПК ───────── */
+/* изометрия: плоский чертёж (x, y) → экран */
+const CX = 310, CY = 345;
+const ISO = `translate(${CX} ${CY}) scale(1 .55) rotate(45)`;
+const P = (x, y) => [CX + (x - y) * 0.7071, CY + (x + y) * 0.7071 * 0.55];
+
+function useTween(target, ms = 650) {
+  const [v, setV] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    const t0 = performance.now(), a = from.current;
+    let raf;
+    const tick = (t) => {
+      const p = Math.min((t - t0) / ms, 1);
+      from.current = a + (target - a) * (1 - Math.pow(1 - p, 3));
+      setV(from.current);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return v;
+}
+
+/* ───────── детали сцены ───────── */
 function Fan({ x, y, r, speed }) {
   return (
     <g transform={`translate(${x} ${y})`}>
-      <circle r={r} className="fan-ring" />
-      <g className="spin" style={{ "--d": `${speed}s` }}>
-        {[0, 72, 144, 216, 288].map((a) => (
-          <ellipse key={a} cx="0" cy={-r * 0.5} rx={r * 0.2} ry={r * 0.42} className="blade" transform={`rotate(${a})`} />
-        ))}
+      <circle r={r} className="bx-fanring" />
+      <g className="bx-spin" style={{ "--d": `${speed}s` }}>
+        {[0, 72, 144, 216, 288].map((a) => <ellipse key={a} cy={-r * 0.5} rx={r * 0.2} ry={r * 0.42} className="bx-blade" transform={`rotate(${a})`} />)}
       </g>
-      <circle r={r * 0.2} className="hub" />
+      <circle r={r * 0.18} className="bx-hub" />
     </g>
   );
 }
 
-function PcScene({ sel, active, onPick }) {
-  const cpu = parts.cpu.items[sel.cpu];
-  const gpu = parts.gpu.items[sel.gpu];
-  const ram = parts.ram.items[sel.ram];
-  const cpuSpeed = 2.4 - cpu.perf / 60;
-  const gpuW = gpu.fans ? 70 + gpu.fans * 82 : 0;
-  const hot = (k) => (active === k ? "part active" : "part");
-  const key = (e, k) => (e.key === "Enter" || e.key === " ") && onPick(k);
-
+function Part({ lift, delay = 0, depth = 5, active, ghost, onClick, base, top }) {
   return (
-    <svg viewBox="0 0 520 430" className="pc-svg" role="img" aria-label="Схема системного блока">
-      <defs>
-        <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7fd8ff" stopOpacity=".12" />
-          <stop offset="1" stopColor="#7fd8ff" stopOpacity=".02" />
-        </linearGradient>
-        <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#cfe9f7" />
-          <stop offset="1" stopColor="#6f8da3" />
-        </linearGradient>
-        <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#14202c" />
-          <stop offset="1" stopColor="#0e1620" />
-        </linearGradient>
-      </defs>
-
-      <rect x="8" y="8" width="504" height="414" rx="24" className="case" />
-      <rect x="8" y="8" width="504" height="414" rx="24" fill="url(#glass)" />
-      <rect x="28" y="28" width="464" height="310" rx="12" fill="url(#pcb)" className="board" />
-
-      {/* дорожки */}
-      <g className="traces">
-        <path d="M185 100 H240 M185 130 H225 V190 H250 M125 185 V215 M200 185 V225" />
-        <path d="M350 120 H400 V215 H440 M350 160 H470" />
-      </g>
-
-      {/* CPU */}
-      <g className={hot("cpu")} tabIndex="0" role="button" aria-label="Выбрать процессор" onClick={() => onPick("cpu")} onKeyDown={(e) => key(e, "cpu")}>
-        <g key={"cpu" + sel.cpu} className="swap">
-          <rect x="66" y="60" width="118" height="118" rx="10" className="socket" />
-          <rect x="82" y="76" width="86" height="86" rx="8" fill="url(#chip)" />
-          <Fan x={125} y={119} r={36} speed={cpuSpeed} />
-          <text x="125" y="196" className="tag">{cpu.short}</text>
+    <g className={`bx-part ${active ? "on" : ""} ${ghost ? "ghost" : ""}`} style={{ transform: `translateY(${-lift}px)`, transitionDelay: `${delay}ms` }} onClick={onClick}>
+      <g className="bx-drop">
+        <g className="bx-bob" style={{ animationDelay: `${delay}ms` }}>
+          {!ghost && <g transform={`translate(0 ${depth})`}><g transform={ISO} className="bx-under">{base}</g></g>}
+          <g transform={ISO}>{base}{top}</g>
         </g>
       </g>
+    </g>
+  );
+}
 
-      {/* RAM */}
-      <g className={hot("ram")} tabIndex="0" role="button" aria-label="Выбрать оперативную память" onClick={() => onPick("ram")} onKeyDown={(e) => key(e, "ram")}>
-        {[0, 1, 2, 3].map((i) => {
-          const on = i < ram.sticks;
-          return (
-            <g key={i + "-" + sel.ram} className={on ? "stick swap" : "stick off"} style={{ "--i": i }}>
-              <rect x={266 + i * 26} y="56" width="16" height="124" rx="3" className="ram-body" />
-              {on && <rect x={269 + i * 26} y="62" width="10" height="8" rx="2" className="led" style={{ "--i": i }} />}
-              {on && [0, 1, 2].map((c) => <rect key={c} x={270 + i * 26} y={80 + c * 28} width="8" height="18" rx="1.5" className="ram-chip" />)}
-            </g>
-          );
-        })}
-        <text x="313" y="196" className="tag">{ram.gb} ГБ</text>
+function Callout({ pt, lift, side, k, v, active, onClick }) {
+  const dx = (side === "L" ? 26 : 594) - pt[0];
+  const anchor = side === "L" ? "start" : "end";
+  return (
+    <g className={`bx-co ${active ? "on" : ""} ${onClick ? "click" : ""}`} style={{ transform: `translate(${pt[0]}px, ${pt[1]}px) translateY(${-lift}px)` }} onClick={onClick}>
+      <line x2={dx} />
+      <circle r="3.5" />
+      <text className="k" x={dx} y="-19" textAnchor={anchor}>{k}</text>
+      <text className="v" x={dx} y="-5" textAnchor={anchor}>{v}</text>
+    </g>
+  );
+}
+
+function Scene({ sel, tab, open, setTab, watts, psu }) {
+  const cpu = parts.cpu.items[sel.cpu], gpu = parts.gpu.items[sel.gpu], ram = parts.ram.items[sel.ram];
+  const L = (k) => (open ? LIFT[k] : 0) + (tab === k ? 10 : 0);
+  const gx0 = -170, gw = 80 + 72 * gpu.fans;
+  const cpuA = P(-100, -45), ramA = P(55, -125), gpuA = P(gpu.fans ? gx0 + gw / 2 : -20, 85), psuA = P(190, -82);
+  const dropAt = [[P(-100, -45), L("cpu")], [P(55, -65), L("ram")], [P(gpu.fans ? gx0 + gw / 2 : -20, 85), L("gpu")], [psuA, L("psu")]];
+  const flow = `${Math.max(0.5, 1.8 - watts / 300).toFixed(2)}s`;
+
+  return (
+    <svg viewBox="0 95 620 430" className={`bx-svg ${open ? "open" : ""}`} role="img" aria-label="Изометрическая схема системного блока">
+      <defs>
+        <linearGradient id="bxBoard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1a2a3f" /><stop offset="1" stopColor="#0d1623" /></linearGradient>
+        <linearGradient id="bxChip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#dcebf6" /><stop offset="1" stopColor="#6d8aa0" /></linearGradient>
+        <pattern id="bxGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(127,216,255,.08)" /></pattern>
+      </defs>
+
+      {/* плата */}
+      <g transform="translate(0 12)"><g transform={ISO}><rect x="-200" y="-150" width="400" height="300" rx="14" fill="#070b11" /></g></g>
+      <g transform={ISO}>
+        <rect x="-200" y="-150" width="400" height="300" rx="14" className="bx-board" />
+        <rect x="-200" y="-150" width="400" height="300" rx="14" fill="url(#bxGrid)" />
+        <path className="bx-trace" d="M-50 -45 H-20 V-130 M-50 -70 H-10 M-100 5 V40 M60 5 V40 H110 M-130 -95 V-130 H-60" />
+        <g className={`bx-cables ${open ? "off" : ""}`} style={{ "--fd": flow }}>
+          <path d="M150 -44 V30 H-100 V5" />
+          {gpu.fans > 0 && <path d={`M150 30 V85 H${gx0 + gw}`} />}
+        </g>
+        {gpu.fans === 0 && <rect x="-170" y="53" width="296" height="64" rx="6" className="bx-slot" />}
       </g>
 
-      {/* GPU */}
-      <g className={hot("gpu")} tabIndex="0" role="button" aria-label="Выбрать видеокарту" onClick={() => onPick("gpu")} onKeyDown={(e) => key(e, "gpu")}>
-        <rect x="46" y="226" width="400" height="62" rx="8" className="pcie" />
-        {gpu.fans > 0 && (
-          <g key={"gpu" + sel.gpu} className="swap">
-            <rect x="46" y="226" width={gpuW} height="62" rx="10" className="gpu-body" />
-            {Array.from({ length: gpu.fans }, (_, i) => (
-              <Fan key={i} x={86 + i * 80} y={257} r={25} speed={1.6 - gpu.perf / 90} />
-            ))}
-            <rect x={46 + gpuW - 8} y="238" width="6" height="38" rx="3" className="led gpu-led" />
-          </g>
-        )}
-        <text x={gpu.fans ? 46 + gpuW / 2 : 246} y="308" className="tag">{gpu.short}</text>
-      </g>
+      {/* процессор */}
+      <Part key={"c" + sel.cpu} lift={L("cpu")} active={tab === "cpu"} onClick={() => setTab("cpu")}
+        base={<rect x="-150" y="-95" width="100" height="100" rx="8" className="bx-slab" />}
+        top={<>
+          <rect x="-138" y="-83" width="76" height="76" rx="5" fill="url(#bxChip)" />
+          <rect x="-118" y="-63" width="36" height="36" rx="3" className="bx-die" />
+          <Fan x={-100} y={-45} r={27} speed={2.4 - cpu.perf / 60} />
+        </>} />
 
-      {/* питание */}
-      <rect x="28" y="356" width="210" height="52" rx="8" className="psu" />
-      <text x="133" y="387" className="psu-text">БП</text>
-      <path d="M238 380 H470 V150 M238 372 H450 V230" className="cable" />
-      <path d="M133 356 V338" className="cable" />
+      {/* оперативная память: 4 слота */}
+      {[0, 1, 2, 3].map((i) => {
+        const x = 10 + i * 24, on = i < ram.sticks;
+        return (
+          <Part key={`r${i}-${sel.ram}`} lift={on ? L("ram") : 0} delay={i * 70} depth={4} ghost={!on} active={tab === "ram"} onClick={() => setTab("ram")}
+            base={<rect x={x} y="-125" width="14" height="120" rx="2.5" className="bx-slab" />}
+            top={on && <>
+              {[0, 1, 2, 3].map((c) => <rect key={c} x={x + 2.5} y={-108 + c * 26} width="9" height="17" rx="1.5" className="bx-ramchip" />)}
+              <rect x={x} y="-125" width="14" height="4" className="bx-led" style={{ animationDelay: `${i * 0.3}s` }} />
+            </>} />
+        );
+      })}
+
+      {/* видеокарта */}
+      {gpu.fans > 0 && (
+        <Part key={"g" + sel.gpu} lift={L("gpu")} active={tab === "gpu"} onClick={() => setTab("gpu")}
+          base={<rect x={gx0} y="53" width={gw} height="64" rx="6" className="bx-slab" />}
+          top={<>
+            <rect x={gx0 + 4} y="57" width={gw - 8} height="56" rx="4" className="bx-gputop" />
+            {Array.from({ length: gpu.fans }, (_, i) => <Fan key={i} x={gx0 + gw / 2 - (gpu.fans - 1) * 36 + i * 72} y={85} r={25} speed={1.7 - gpu.perf / 90} />)}
+            <rect x={gx0 + gw - 9} y="62" width="4" height="46" rx="2" className="bx-led green" />
+          </>} />
+      )}
+      {gpu.fans === 0 && <g onClick={() => setTab("gpu")} className="bx-hit"><rect x="-170" y="53" width="296" height="64" fill="transparent" transform={ISO} /></g>}
+
+      {/* блок питания */}
+      <Part lift={L("psu")} active={false} depth={7}
+        base={<rect x="110" y="-120" width="80" height="76" rx="6" className="bx-slab" />}
+        top={<>
+          {[0, 1, 2, 3, 4].map((i) => <line key={i} x1="118" x2="182" y1={-110 + i * 6} y2={-110 + i * 6} className="bx-vent" />)}
+          <text x="150" y="-66" className="bx-psu">{psu} Вт</text>
+        </>} />
+
+      {/* линии «взрыва» */}
+      {dropAt.map(([a, lift], i) => (
+        <g key={i} transform={`translate(${a[0]} ${a[1]})`}><line y2="-1" className="bx-dline" style={{ transform: `scaleY(${lift})` }} /></g>
+      ))}
+
+      {/* выноски */}
+      <Callout pt={cpuA} lift={L("cpu")} side="L" k="ПРОЦЕССОР" v={cpu.name} active={tab === "cpu"} onClick={() => setTab("cpu")} />
+      <Callout pt={ramA} lift={L("ram")} side="R" k="ПАМЯТЬ" v={ram.name} active={tab === "ram"} onClick={() => setTab("ram")} />
+      <Callout pt={gpuA} lift={L("gpu")} side="L" k="ВИДЕОКАРТА" v={gpu.name} active={tab === "gpu"} onClick={() => setTab("gpu")} />
+      <Callout pt={psuA} lift={L("psu")} side="R" k="БЛОК ПИТАНИЯ" v={`от ${psu} Вт`} />
     </svg>
   );
 }
 
-/* ───────── конфигуратор ───────── */
+/* ───────── страница ───────── */
 export default function Builder({ criteria }) {
   const [sel, setSel] = useState({ cpu: 1, gpu: 1, ram: 1 });
   const [tab, setTab] = useState("cpu");
-  const cpu = parts.cpu.items[sel.cpu];
-  const gpu = parts.gpu.items[sel.gpu];
-  const ram = parts.ram.items[sel.ram];
+  const [open, setOpen] = useState(false);
+  const cpu = parts.cpu.items[sel.cpu], gpu = parts.gpu.items[sel.gpu], ram = parts.ram.items[sel.ram];
 
-  const stats = useMemo(() => {
+  const s = useMemo(() => {
     const watts = cpu.w + gpu.w + ram.w + 60;
-    const psu = Math.ceil((watts * 1.4) / 50) * 50;
-    const office = Math.round(cpu.perf * 0.5 + ram.perf * 0.4 + gpu.perf * 0.1);
-    const gaming = Math.round(cpu.perf * 0.3 + gpu.perf * 0.6 + ram.perf * 0.1);
-    const cores = parseInt(cpu.spec);
-    const status = ram.gb < criteria.minRam || cores < criteria.minCores ? "Не готов" : ram.gb < criteria.minRam * 2 ? "Частично" : "Готов";
-    return { watts, psu, office, gaming, status };
+    const okRam = ram.gb >= criteria.minRam, okCpu = cpu.cores >= criteria.minCores;
+    const score = Math.round((Math.min(1, ram.gb / (criteria.minRam * 2)) * 0.5 + Math.min(1, cpu.cores / criteria.minCores) * 0.5) * 100);
+    return {
+      watts, psu: Math.ceil((watts * 1.4) / 50) * 50, price: cpu.price + gpu.price + ram.price, okRam, okCpu, score,
+      office: Math.round(cpu.perf * 0.5 + ram.perf * 0.4 + gpu.perf * 0.1), gaming: Math.round(cpu.perf * 0.3 + gpu.perf * 0.6 + ram.perf * 0.1),
+      status: !okRam || !okCpu ? "Не готов" : ram.gb < criteria.minRam * 2 ? "Частично" : "Готов",
+    };
   }, [cpu, gpu, ram, criteria]);
 
-  const verdict = {
-    "Готов": "Подходит для перехода на отечественную ОС и офисное ПО.",
-    "Частично": "Перейти можно, но тяжёлые программы будут работать медленно.",
-    "Не готов": `Не проходит критерии: нужно от ${criteria.minRam} ГБ ОЗУ и ${criteria.minCores} ядер.`,
-  }[stats.status];
+  const score = useTween(s.score), watts = useTween(s.watts), price = useTween(s.price);
+  const C = 2 * Math.PI * 34;
+  const tone = s.status === "Готов" ? "ok" : s.status === "Частично" ? "warn" : "bad";
+  const text = {
+    "Готов": "Сборка проходит все критерии. Можно переводить на отечественную ОС.",
+    "Частично": "Критерии выполнены, но запас по памяти небольшой. Тяжёлое ПО будет работать медленно.",
+    "Не готов": "Сборка не проходит критерии. Замените отмеченные детали или нажмите «Подобрать».",
+  }[s.status];
+
+  const cheapest = (cat, ok) => {
+    const items = parts[cat].items;
+    let best = -1;
+    items.forEach((it, i) => { if (ok(it) && (best < 0 || it.price < items[best].price)) best = i; });
+    return best < 0 ? items.length - 1 : best;
+  };
+  const auto = () => setSel({ cpu: cheapest("cpu", (i) => i.cores >= criteria.minCores), gpu: 0, ram: cheapest("ram", (i) => i.gb >= criteria.minRam * 2) });
+
+  const checks = [
+    ["Оперативная память", `${ram.gb} ГБ`, `от ${criteria.minRam} ГБ`, s.okRam],
+    ["Ядра процессора", `${cpu.cores}`, `от ${criteria.minCores}`, s.okCpu],
+  ];
 
   return (
-    <section className="builder">
-      <div className="panel stage">
-        <PcScene sel={sel} active={tab} onPick={setTab} />
-        <div className="stage-note">Нажмите на деталь на схеме, чтобы заменить её</div>
+    <section className="bx">
+      <div className="bx-stage">
+        <div className="bx-top">
+          <div className="seg">
+            <button className={!open ? "on" : ""} onClick={() => setOpen(false)}>Собрать</button>
+            <button className={open ? "on" : ""} onClick={() => setOpen(true)}>Разобрать</button>
+          </div>
+          <span className="bx-hint">Нажмите на деталь или подпись</span>
+        </div>
+        <Scene sel={sel} tab={tab} open={open} setTab={setTab} watts={s.watts} psu={s.psu} />
       </div>
 
-      <div className="builder-side">
-        <div className="tabs" role="tablist">
-          {Object.entries(parts).map(([k, p]) => (
-            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "tab on" : "tab"} onClick={() => setTab(k)}>
-              {p.title}
-            </button>
+      <div className="bx-side">
+        <div className={`bx-verdict ${tone}`}>
+          <svg viewBox="0 0 80 80" className="bx-ring">
+            <circle cx="40" cy="40" r="34" className="bg" />
+            <circle cx="40" cy="40" r="34" className="fg" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - s.score / 100) }} />
+            <text x="40" y="45" textAnchor="middle">{Math.round(score)}</text>
+          </svg>
+          <div className="bx-vtext">
+            <StatusBadge status={s.status} />
+            <p>{text}</p>
+          </div>
+        </div>
+
+        <div className="bx-checks">
+          {checks.map(([l, v, need, ok]) => (
+            <div key={l} className={ok ? "ok" : "bad"}>
+              <i key={String(ok)}>{ok ? "✓" : "✕"}</i>
+              <span>{l}</span>
+              <b>{v}</b>
+              <em>{need}</em>
+            </div>
           ))}
         </div>
 
-        <div className="options" key={tab}>
+        <div className="bx-tabs" role="tablist">
+          {tabs.map((k) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{parts[k].title}</button>)}
+        </div>
+
+        <div className="bx-opts" key={tab}>
           {parts[tab].items.map((it, i) => (
-            <button key={it.name} className={sel[tab] === i ? "option on" : "option"} style={{ "--i": i }} onClick={() => setSel({ ...sel, [tab]: i })}>
-              <span className="option-main">
-                <strong>{it.name}</strong>
-                <span>{it.spec}</span>
-              </span>
-              <span className="option-w">{it.w} Вт</span>
+            <button key={it.name} className={sel[tab] === i ? "on" : ""} style={{ "--i": i }} onClick={() => setSel({ ...sel, [tab]: i })}>
+              <span className="bx-o-main"><strong>{it.name}</strong><span>{it.spec}</span></span>
+              <span className="bx-o-side"><b>{it.price.toLocaleString("ru-RU")} ₽</b><span>{it.w} Вт</span></span>
+              <span className="bx-o-bar"><span style={{ width: `${it.perf}%` }} /></span>
             </button>
           ))}
         </div>
 
-        <Panel title="Итог сборки" hint={verdict} action={<StatusBadge status={stats.status} />}>
-          <div className="meters">
-            {[["Офисные задачи", stats.office], ["Графика и игры", stats.gaming]].map(([l, v]) => (
-              <div className="meter" key={l}>
-                <div><span>{l}</span><strong>{v}</strong></div>
-                <div className="progress"><span style={{ width: `${v}%` }} /></div>
-              </div>
-            ))}
-          </div>
-          <div className="power">
-            <div><span>Потребление</span><strong>{stats.watts} Вт</strong></div>
-            <div><span>Блок питания от</span><strong>{stats.psu} Вт</strong></div>
-          </div>
-        </Panel>
+        <div className="bx-sum">
+          <div><span>Потребление</span><strong>{Math.round(watts)} Вт</strong></div>
+          <div><span>Блок питания</span><strong>от {s.psu} Вт</strong></div>
+          <div><span>Стоимость</span><strong>{Math.round(price).toLocaleString("ru-RU")} ₽</strong></div>
+        </div>
+
+        <div className="bx-meters">
+          {[["Офисные задачи", s.office], ["Графика и игры", s.gaming]].map(([l, v]) => (
+            <div key={l}><div><span>{l}</span><b>{v}</b></div><div className="progress"><span style={{ width: `${v}%`, transition: "width .7s var(--ease)", animation: "none" }} /></div></div>
+          ))}
+        </div>
+
+        <button className="primary-button bx-auto" onClick={auto}>Подобрать под критерии</button>
       </div>
     </section>
   );
 }
-

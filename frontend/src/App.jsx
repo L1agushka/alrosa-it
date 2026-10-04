@@ -3,6 +3,7 @@ import "./App.css";
 import { Count, Panel, StatusBadge } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
+import Workstations from "./Workstations";
 import { analogs, defaultCriteria, download, evaluate, makeFleet, parseCsv, template } from "./engine";
 
 const navigation = [
@@ -38,14 +39,11 @@ function App() {
   const [scanKey, setScanKey] = useState(0);
   const [focus, setFocus] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [q, setQ] = useState("");
-  const [st, setSt] = useState("");
   const [error, setError] = useState("");
 
   const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
   const ready = n("Готов");
-  const filtered = rows.filter((r) => (!st || r.status === st) && [r.id, r.user, r.department].some((x) => x.toLowerCase().includes(q.toLowerCase())));
 
   const blockers = useMemo(() => {
     const m = {};
@@ -134,33 +132,7 @@ function App() {
             </>
           )}
 
-          {page === "workstations" && (
-            <Panel title="Реестр рабочих мест" hint={`Показано ${filtered.length} из ${rows.length}`}
-              action={<div className="tools">
-                <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по месту, сотруднику, отделу" />
-                <select className="search" value={st} onChange={(e) => setSt(e.target.value)}>
-                  <option value="">Все статусы</option>{statuses.map((s) => <option key={s}>{s}</option>)}
-                </select>
-                <label className="ghost-btn">Загрузить CSV<input type="file" accept=".csv" hidden onChange={upload} /></label>
-                <button className="ghost-btn" onClick={() => download("shablon.csv", template)}>Шаблон</button>
-              </div>}>
-              {error && <div className="error">{error}. Скачайте шаблон и сверьте названия колонок.</div>}
-              <div className="table-wrapper">
-                <table>
-                  <thead><tr><th>Место</th><th>Сотрудник</th><th>Отдел</th><th>ОЗУ</th><th>ПО</th><th>Статус</th><th>Волна</th><th /></tr></thead>
-                  <tbody>
-                    {filtered.slice(0, 40).map((w, i) => (
-                      <tr key={w.id} style={{ "--i": i }} onClick={() => setSelected(w)}>
-                        <td><strong>{w.id}</strong></td><td>{w.user}</td><td>{w.department}</td><td>{w.ram} ГБ</td>
-                        <td>{w.compatible}/{w.programs}</td><td><StatusBadge status={w.status} /></td><td>{w.wave}</td><td className="chev">›</td>
-                      </tr>
-                    ))}
-                    {!filtered.length && <tr><td colSpan="8" className="empty">Ничего не найдено. Измените запрос или статус.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          )}
+          {page === "workstations" && <Workstations rows={rows} c={c} onPick={setSelected} onUpload={upload} error={error} />}
 
           {page === "criteria" && (
             <section className="content-grid">
@@ -234,4 +206,3 @@ function App() {
 }
 
 export default App;
-
