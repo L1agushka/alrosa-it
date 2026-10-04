@@ -283,3 +283,4 @@ select.search { width: auto; }
 @media (max-width: 1100px) { .hero { grid-template-columns: 1fr; } .wave-cols { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .wave-cols { grid-template-columns: 1fr; } }
 @media print { .sidebar, .topbar .primary-button, .tools, .bg-glow { display: none !important; } .app { display: block; color: #000; background: #fff; } }
+
