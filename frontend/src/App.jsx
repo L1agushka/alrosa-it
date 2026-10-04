@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import "./App.css";
-import { Count, Panel, StatusBadge } from "./Uii";
+import { Count, Panel, StatusBadge } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
 import { analogs, defaultCriteria, download, evaluate, makeFleet, parseCsv, template } from "./engine";
