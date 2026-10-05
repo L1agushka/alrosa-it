@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { Count, Panel, StatusBadge } from "./ui";
 import Mosaic from "./Mosaic";
@@ -29,6 +29,47 @@ function Criteria({ c, set }) {
       {row("minCores", "Минимум ядер процессора", 2, 8, 1, "")}
       {row("maxGap", "Допустимая доля ПО без аналога", 0, 50, 5, "%")}
     </div>
+  );
+}
+
+function ScanButton({ total, ready, onScan }) {
+  const [phase, setPhase] = useState("idle");
+  const [n, setN] = useState(0);
+  const raf = useRef(0);
+  const timer = useRef(0);
+  useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(timer.current); }, []);
+
+  const run = () => {
+    if (phase === "run") return;
+    cancelAnimationFrame(raf.current); clearTimeout(timer.current);
+    onScan(); setPhase("run"); setN(0);
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min((now - t0) / 1500, 1);
+      setN(Math.round(total * (1 - (1 - p) * (1 - p))));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+      else { setPhase("done"); timer.current = setTimeout(() => setPhase("idle"), 2600); }
+    };
+    raf.current = requestAnimationFrame(tick);
+  };
+
+  return (
+    <button className={`scan ${phase}`} onClick={run} aria-live="polite">
+      <span className="scan-ring" aria-hidden="true" />
+      <span className="scan-in">
+        {phase === "done" ? (
+          <svg viewBox="0 0 24 24" className="scan-ico tick"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        ) : (
+          <svg viewBox="0 0 32 32" className="scan-ico"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
+        )}
+        <span className="scan-text">
+          {phase === "idle" && "Запустить анализ"}
+          {phase === "run" && <>Проверяем <b>{n}</b> из {total}</>}
+          {phase === "done" && <>Готово: <b>{ready}</b> из {total} готовы</>}
+        </span>
+        <span className="scan-bar" style={{ transform: `scaleX(${phase === "run" ? n / total : 0})` }} />
+      </span>
+    </button>
   );
 }
 
@@ -95,7 +136,7 @@ function App() {
       <main className="main">
         <header className="topbar">
           <h1 key={page}>{navigation.find((i) => i.id === page).title}</h1>
-          <button className="primary-button" onClick={scan}>Запустить анализ</button>
+          <ScanButton total={rows.length} ready={ready} onScan={scan} />
         </header>
 
         <div className="page" key={page}>
