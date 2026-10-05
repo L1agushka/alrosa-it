@@ -4,6 +4,7 @@ import { Count, Panel, StatusBadge } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
 import Workstations from "./Workstations";
+import Welcome from "./Welcome";
 import { analogs, defaultCriteria, download, evaluate, makeFleet, parseCsv, template } from "./engine";
 
 const navigation = [
@@ -81,6 +82,7 @@ function App() {
   const [focus, setFocus] = useState(null);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
+  const [entered, setEntered] = useState(false);
 
   const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
@@ -114,6 +116,7 @@ function App() {
   return (
     <div className="app">
       <div className="bg-glow" aria-hidden="true" />
+      {!entered && <Welcome onEnter={() => { setEntered(true); setScanKey((k) => k + 1); }} />}
       <aside className="sidebar">
         <div className="brand">
           <svg viewBox="0 0 32 32" className="brand-logo"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
