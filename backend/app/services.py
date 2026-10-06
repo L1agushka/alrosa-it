@@ -101,7 +101,11 @@ def process_audit_file(
             "status": status,
             "wave": wave,
             "hardware_issues": hw_issues,
-            "blocking_software": detected_blockers
+            "blocking_software": detected_blockers,
+            "ram_gb": ram,
+            "cpu_cores": cpu,
+            "disk_gb": disk,
+            "installed_software": software_list
         })
 
     # 4. Сохраняем сессию аудита
@@ -116,6 +120,8 @@ def process_audit_file(
     db.commit()
 
     return {
+        "id": audit_session.id,
+        "session_id": audit_session.id,
         "target_os": target_os.name,
         "summary": summary,
         "workstations": results

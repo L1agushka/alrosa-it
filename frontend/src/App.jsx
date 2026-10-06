@@ -38,7 +38,7 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs }) {
               setTargetOs(selectedName);
               const prof = osProfiles.find((p) => p.name === selectedName);
               if (prof) {
-                set({ ...c, minRam: Math.max(c.minRam, prof.min_ram_gb), minCores: Math.max(c.minCores, prof.min_cpu_cores) });
+                set({ ...c, minRam: prof.min_ram_gb, minCores: prof.min_cpu_cores });
               }
             }}
           >
@@ -117,12 +117,12 @@ const mapServerWorkstations = (workstations) => {
       user: ws.user_fullname || "—",
       department: ws.department || "—",
       os: "Windows",
-      ram: ws.hardware_issues?.length ? "2-4" : 8,
-      cores: 4,
-      programs: blockers.filter((b) => b.type === "ПО").length,
-      compatible: blockers.filter((b) => b.type === "ПО").length === 0 ? "Все" : "Частично",
-      status: statusMap[ws.status] || "Частично",
-      wave: ws.wave ? `Волна ${ws.wave}` : "—",
+      ram: Number(ws.ram_gb) || 8,
+      cores: Number(ws.cpu_cores) || 4,
+      disk: Number(ws.disk_gb) || 256,
+      programs: Array.isArray(ws.installed_software) ? ws.installed_software.length : 4,
+      compatible: Math.max(0, (Array.isArray(ws.installed_software) ? ws.installed_software.length : 4) - (ws.blocking_software?.length || 0)),
+      blockingSoftware: ws.blocking_software || [],
       blockers,
     };
   });
@@ -162,6 +162,11 @@ function App() {
         if (profiles.length > 0) {
           setOsProfiles(profiles);
           setTargetOs(profiles[0].name);
+          setC((prev) => ({
+            ...prev,
+            minRam: profiles[0].min_ram_gb,
+            minCores: profiles[0].min_cpu_cores
+          }));
         }
       })
       .catch((err) => console.warn("Failed to load OS profiles:", err));
@@ -204,7 +209,7 @@ function App() {
     });
   }, [rawCompat, targetOs]);
 
-  const rows = useMemo(() => fleet.map((w) => w.fromBackend ? w : evaluate(w, c)), [fleet, c]);
+  const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
   const ready = n("Готов");
 
