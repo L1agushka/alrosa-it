@@ -131,8 +131,7 @@ const mapServerWorkstations = (workstations) => {
 const SYSTEM_USERS = [
   { id: "alex", name: "Алексей Старовойтов", role: "Системный администратор", initials: "АС" },
   { id: "artur", name: "Артур Бучинский", role: "Ведущий архитектор", initials: "АБ" },
-  { id: "elena", name: "Елена Соколова", role: "Специалист ИБ", initials: "ЕС" },
-  { id: "dmitry", name: "Дмитрий Кузнецов", role: "ИТ-аудитор", initials: "ДК" },
+  { id: "viktoria", name: "Виктория Чуносова", role: "Backend-разработчик", initials: "ВЧ" },
 ];
 
 function App() {
