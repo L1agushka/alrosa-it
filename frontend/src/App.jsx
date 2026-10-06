@@ -84,7 +84,7 @@ function App() {
   const [error, setError] = useState("");
   const [entered, setEntered] = useState(false);
 
-  const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
+  const rows = useMemo(() => fleet.map((w) => w.fromBackend ? w : evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
   const ready = n("Готов");
 
@@ -100,10 +100,58 @@ function App() {
     const f = e.target.files[0];
     if (!f) return;
     try {
-      const data = parseCsv(await f.text());
-      if (!data.length) throw new Error("Файл пустой");
-      setFleet(data); setError(""); setScanKey((k) => k + 1);
-    } catch (err) { setError(err.message); }
+      setError("");
+      const formData = new FormData();
+      formData.append("file", f);
+      formData.append("target_os", "Astra Linux Special Edition 1.7");
+
+      const res = await fetch("/api/v1/audit/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Ошибка при аудите на сервере");
+      }
+
+      const data = await res.json();
+      const statusMap = {
+        ready: "Готов",
+        upgrade_required: "Частично",
+        blocked: "Не готов"
+      };
+
+      const serverFleet = data.workstations.map((ws) => {
+        const blockers = [];
+        (ws.hardware_issues || []).forEach((h) => {
+          blockers.push({ type: "Оборудование", text: h, fix: "Модернизировать комплектующие" });
+        });
+        (ws.blocking_software || []).forEach((s) => {
+          blockers.push({ type: "ПО", text: s, fix: "Заменить на отечественный аналог" });
+        });
+
+        return {
+          fromBackend: true,
+          id: ws.workstation_id,
+          user: ws.user_fullname || "—",
+          department: ws.department || "—",
+          os: "Windows",
+          ram: ws.hardware_issues?.length ? "2-4" : 8,
+          cores: 4,
+          programs: blockers.filter((b) => b.type === "ПО").length,
+          compatible: blockers.filter((b) => b.type === "ПО").length === 0 ? "Все" : "Частично",
+          status: statusMap[ws.status] || "Частично",
+          wave: ws.wave ? `Волна ${ws.wave}` : "—",
+          blockers,
+        };
+      });
+
+      setFleet(serverFleet);
+      setScanKey((k) => k + 1);
+    } catch (err) {
+      setError(err.message);
+    }
     e.target.value = "";
   };
 
