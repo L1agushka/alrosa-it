@@ -62,6 +62,7 @@ REST API Swagger (Backend): http://localhost:8000/docs
 
 Healthcheck: http://localhost:8000/health
 ```
+```
 🛠️ Разработка и локальное подключение
 Архитектура проекта
 Plaintext
@@ -89,7 +90,7 @@ alrosa-it/
 └── docker-compose.yml
 Подключение к разработке Backend
 Создание виртуального окружения:
-
+```
 ```
 cd backend
 python3 -m venv venv
