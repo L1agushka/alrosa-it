@@ -46,20 +46,22 @@
 Для запуска полного комплекса требуется только установленный **Docker** и **Docker Compose**.
 
 ### 1. Клонирование репозитория
-```bash
+```
 git clone git@github.com:L1agushka/alrosa-it.git
 cd alrosa-it
+```
 2. Запуск контейнеров
-Bash
+```
 docker compose up -d --build
+```
 После завершения сборки сервис доступен по адресам:
-
+```
 Web-интерфейс (Frontend): http://localhost (порт 80)
 
 REST API Swagger (Backend): http://localhost:8000/docs
 
 Healthcheck: http://localhost:8000/health
-
+```
 🛠️ Разработка и локальное подключение
 Архитектура проекта
 Plaintext
@@ -88,45 +90,45 @@ alrosa-it/
 Подключение к разработке Backend
 Создание виртуального окружения:
 
-Bash
+```
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 pip install ruff pytest pytest-cov
+```
 Запуск базы данных для локальной разработки:
 
-Bash
+```
 docker compose up -d db
+```
 Инициализация справочников базы:
-
-Bash
+```
 python -c "from app.database import Base, engine, SessionLocal; from app.seed import seed_database; Base.metadata.create_all(bind=engine); db = SessionLocal(); seed_database(db); db.close(); print('Seed completed!')"
+```
 Запуск dev-сервера:
 
-Bash
+```
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 Запуск тестов и проверка качества
 Перед каждым пушем код обязательно проверяется линтером и тестами:
 
-Bash
+```
 # 1. Быстрая проверка синтаксиса и чистоты кода через Ruff
 ruff check backend/app --select=E9,F63,F7,F82
 
 # 2. Запуск тестов внутри Docker с расчетом покрытия строк
 docker compose exec backend pytest --cov=app --cov-report=term-missing tests/
+```
 Тестовые данные
 Для наполнения дашборда сгенерирован синтетический датасет на 100 АРМ:
 
-Bash
+```
 # Файл находится в корне проекта
 ls -la alrosa_audit_100_workstations.csv
+```
 Файл можно перетащить прямо в браузер для проверки работы фильтров и скоринга.
-
-
-3. Сохрани файл:
-   * В **nano**: нажми `Ctrl + O`, затем `Enter`, затем `Ctrl + X` для выхода.
-   * В **VS Code**: `Ctrl + S`.
 
 ---
 
@@ -134,7 +136,8 @@ ls -la alrosa_audit_100_workstations.csv
 
 Теперь в терминале выполняем всего три короткие команды:
 
-```bash
+```
 git add README.md
 git commit -m "docs: enrich README with badges, quickstart, and development guide"
 git push origin main
+```
