@@ -5,7 +5,7 @@ client = TestClient(app)
 
 def test_get_os_profiles():
     """Проверка получения списка поддерживаемых ОС"""
-    res = client.get("/api/v1/os-profiles")
+    res = client.get("/api/v1/catalog/os-profiles")
     assert res.status_code == 200
     profiles = res.json()
     assert isinstance(profiles, list)
