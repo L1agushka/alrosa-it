@@ -41,23 +41,85 @@ export function evaluate(ws, c) {
   return { ...ws, blockers, gap, status, wave };
 }
 
-export function parseCsv(text) {
-  const [head, ...lines] = text.trim().split(/\r?\n/);
-  const cols = head.split(/[;,]/).map((s) => s.trim().toLowerCase());
-  const need = ["id", "user", "department", "os", "ram", "cores", "programs", "compatible"];
-  const miss = need.filter((n) => !cols.includes(n));
-  if (miss.length) throw new Error(`В файле нет колонок: ${miss.join(", ")}`);
-  return lines.filter(Boolean).map((l) => {
-    const v = l.split(/[;,]/); const o = {};
-    cols.forEach((c, i) => (o[c] = v[i]?.trim()));
-    return { ...o, ram: +o.ram, cores: +o.cores, programs: +o.programs, compatible: +o.compatible };
-  });
-}
-
 export const template = "id;user;department;os;ram;cores;programs;compatible\nАРМ-001;Иванов Иван;Бухгалтерия;Windows 10;8;4;14;12\n";
 
-export function download(name, text) {
+export function download(filename, text) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob(["\ufeff" + text], { type: "text/csv;charset=utf-8" }));
-  a.download = name; a.click();
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function splitCsvLine(line, delim) {
+  const result = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      inQuotes = !inQuotes;
+    } else if (c === delim && !inQuotes) {
+      result.push(cur.trim());
+      cur = "";
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur.trim());
+  return result.map((s) => s.replace(/^"|"$/g, "").trim());
+}
+
+export function parseCsv(text) {
+  const clean = text.replace(/^\uFEFF/, "").trim();
+  if (!clean) return [];
+
+  const rawLines = clean.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (rawLines.length < 2) return [];
+
+  const delim = rawLines[0].includes(";") ? ";" : ",";
+  const headers = splitCsvLine(rawLines[0], delim).map((h) => h.toLowerCase());
+
+  const findIdx = (aliases) => headers.findIndex((h) => aliases.some((a) => h === a || h.includes(a)));
+
+  const idIdx = findIdx(["id", "workstation_id", "хост", "арм"]);
+  const userIdx = findIdx(["user", "user_fullname", "пользователь", "сотрудник", "фио"]);
+  const deptIdx = findIdx(["department", "отдел", "подразделение"]);
+  const osIdx = findIdx(["os", "os_name", "ос", "система"]);
+  const ramIdx = findIdx(["ram", "ram_gb", "озу", "память"]);
+  const coresIdx = findIdx(["cores", "cpu_cores", "ядра", "процессор"]);
+  const progIdx = findIdx(["programs", "installed_software", "софт", "программы"]);
+  const compIdx = findIdx(["compatible", "совместимо"]);
+
+  if (idIdx === -1 && ramIdx === -1) {
+    throw new Error("Не удалось распознать колонки CSV. Проверьте заголовок файла.");
+  }
+
+  return rawLines.slice(1).map((line, idx) => {
+    const cols = splitCsvLine(line, delim);
+    const id = idIdx !== -1 && cols[idIdx] ? cols[idIdx] : `АРМ-${String(idx + 1).padStart(3, "0")}`;
+    const user = userIdx !== -1 && cols[userIdx] ? cols[userIdx] : "Не указан";
+    const department = deptIdx !== -1 && cols[deptIdx] ? cols[deptIdx] : "Общий отдел";
+    const os = osIdx !== -1 && cols[osIdx] ? cols[osIdx] : "Windows 10";
+    const ram = ramIdx !== -1 ? parseInt(cols[ramIdx], 10) || 8 : 8;
+    const cores = coresIdx !== -1 ? parseInt(cols[coresIdx], 10) || 4 : 4;
+
+    let programs = 10;
+    let compatible = 8;
+    if (progIdx !== -1 && cols[progIdx]) {
+      const rawP = cols[progIdx];
+      if (!isNaN(rawP) && rawP.trim() !== "") {
+        programs = parseInt(rawP, 10) || 10;
+        compatible = compIdx !== -1 && !isNaN(cols[compIdx]) ? parseInt(cols[compIdx], 10) : Math.max(programs - 2, 1);
+      } else {
+        const list = rawP.split(/[|,;]/).filter(Boolean);
+        programs = Math.max(list.length, 1);
+        compatible = Math.max(programs - 1, 1);
+      }
+    }
+
+    return { id, user, department, os, ram, cores, programs, compatible };
+  });
 }
