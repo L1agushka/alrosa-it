@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: alrosa_audit_db
+    environment:
+      POSTGRES_USER: audit_user
+      POSTGRES_PASSWORD: audit_password
+      POSTGRES_DB: alrosa_audit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audit_user -d alrosa_audit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Порт 5432 намеренно не открываем наружу (expose только во внутреннюю сеть)
+    expose:
+      - "5432"
+    networks:
+      - internal_net
+
+  backend:
+    build:
+      context: ./backend
+    container_name: alrosa_audit_backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://audit_user:audit_password@db:5432/alrosa_audit
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    # Порт 8000 закрыт от внешнего мира, доступен только Nginx
+    expose:
+      - "8000"
+    networks:
+      - internal_net
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: alrosa_audit_frontend
+    # Наружу смотрит ТОЛЬКО один стандартный HTTP-порт
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - internal_net
+
+volumes:
+  pgdata:
+
+networks:
+  internal_net:
+    driver: bridge
