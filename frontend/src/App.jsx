@@ -5,7 +5,7 @@ import Mosaic from "./Mosaic";
 import Builder from "./Builder";
 import Workstations from "./Workstations";
 import Welcome from "./Welcome";
-import { analogs, defaultCriteria, download, evaluate, makeFleet, parseCsv, template } from "./engine";
+import { analogs, defaultCriteria, download, evaluate, parseCsv, template } from "./engine";
 
 const navigation = [
   { id: "dashboard", icon: "◇", title: "Обзор" },
@@ -137,6 +137,8 @@ const SYSTEM_USERS = [
 function App() {
   const [page, setPage] = useState("dashboard");
   const [fleet, setFleet] = useState([]);
+    const [auditSessions, setAuditSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("alrosa_user_id");
     return SYSTEM_USERS.find((u) => u.id === saved) || SYSTEM_USERS[0];
@@ -167,12 +169,21 @@ function App() {
       .then((data) => setRawCompat(data))
       .catch((err) => console.warn("Failed to load catalog from DB:", err));
 
+        // Загрузка списка сессий аудита
+    fetch("/api/v1/audit/history")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((sessions) => {
+        setAuditSessions(sessions || []);
+      })
+      .catch((err) => console.warn("Failed to load audit history:", err));
+
     fetch("/api/v1/audit/latest")
       .then((res) => (res.ok ? res.json() : null))
       .then((latest) => {
         if (latest && latest.workstations && latest.workstations.length > 0) {
           setFleet(mapServerWorkstations(latest.workstations));
           if (latest.target_os) setTargetOs(latest.target_os);
+          if (latest.id) setCurrentSessionId(latest.id);
         }
       })
       .catch((err) => console.warn("Failed to load latest audit session:", err));
@@ -203,6 +214,23 @@ function App() {
 
   const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [w, rows.filter((r) => r.wave === w)]);
 
+
+  const loadSession = async (sessionId) => {
+    if (!sessionId) return;
+    try {
+      setError("");
+      const res = await fetch(`/api/v1/audit/history/${sessionId}`);
+      if (!res.ok) throw new Error("Не удалось загрузить выбранную сессию аудита");
+      const session = await res.json();
+      setCurrentSessionId(session.id);
+      if (session.target_os) setTargetOs(session.target_os);
+      setFleet(mapServerWorkstations(session.workstations));
+      setScanKey((k) => k + 1);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const upload = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -225,8 +253,17 @@ function App() {
       const data = await res.json();
       const serverFleet = mapServerWorkstations(data.workstations);
 
-      setFleet(serverFleet);
+            setFleet(serverFleet);
       setScanKey((k) => k + 1);
+      // Обновляем список сессий
+      fetch("/api/v1/audit/history")
+        .then((r) => r.ok && r.json())
+        .then((s) => {
+          if (s && s.length) {
+            setAuditSessions(s);
+            setCurrentSessionId(s[0].id);
+          }
+        });
     } catch (err) {
       setError(err.message);
     }
