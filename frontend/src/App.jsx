@@ -17,7 +17,7 @@ const navigation = [
 ];
 const statuses = ["Готов", "Частично", "Не готов"];
 
-function Criteria({ c, set }) {
+function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs }) {
   const row = (key, label, min, max, step, unit) => (
     <label className="slider" key={key}>
       <span>{label}<strong>{c[key]} {unit}</strong></span>
@@ -26,6 +26,28 @@ function Criteria({ c, set }) {
   );
   return (
     <div className="sliders">
+      {osProfiles.length > 0 && (
+        <label className="slider">
+          <span>Целевая ОС (из БД)<strong>{targetOs}</strong></span>
+          <select
+            className="search"
+            style={{ width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8, background: "var(--panel-2)", color: "var(--text)", border: "1px solid var(--line)" }}
+            value={targetOs}
+            onChange={(e) => {
+              const selectedName = e.target.value;
+              setTargetOs(selectedName);
+              const prof = osProfiles.find((p) => p.name === selectedName);
+              if (prof) {
+                set({ ...c, minRam: Math.max(c.minRam, prof.min_ram_gb), minCores: Math.max(c.minCores, prof.min_cpu_cores) });
+              }
+            }}
+          >
+            {osProfiles.map((p) => (
+              <option key={p.id} value={p.name}>{p.name} (ОЗУ: {p.min_ram_gb} ГБ, Ядра: {p.min_cpu_cores})</option>
+            ))}
+          </select>
+        </label>
+      )}
       {row("minRam", "Минимум ОЗУ", 4, 32, 4, "ГБ")}
       {row("minCores", "Минимум ядер процессора", 2, 8, 1, "")}
       {row("maxGap", "Допустимая доля ПО без аналога", 0, 50, 5, "%")}
@@ -83,27 +105,39 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [entered, setEntered] = useState(false);
-  const [compatList, setCompatList] = useState(analogs);
+  const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
+  const [osProfiles, setOsProfiles] = useState([]);
+  const [rawCompat, setRawCompat] = useState([]);
 
   useEffect(() => {
-    fetch("/api/v1/catalog/compatibility")
-      .then((res) => res.ok ? res.json() : [])
-      .then((data) => {
-        // Фильтруем уникальный софт для целевой ОС (Astra Linux 1.7)
-        const astra = data.filter((item) => item.target_os === "Astra Linux Special Edition 1.7");
-        if (astra.length > 0) {
-          const mapped = astra.map((item) => {
-            let label = "Есть";
-            if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
-            else if (item.status === "web_alternative") label = "Вручную";
-            else if (item.status === "partially_compatible") label = "Частично";
-            return [item.software_name, item.domestic_alternative || "—", label];
-          });
-          setCompatList(mapped);
+    fetch("/api/v1/catalog/os-profiles")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((profiles) => {
+        if (profiles.length > 0) {
+          setOsProfiles(profiles);
+          setTargetOs(profiles[0].name);
         }
       })
+      .catch((err) => console.warn("Failed to load OS profiles:", err));
+
+    fetch("/api/v1/catalog/compatibility")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setRawCompat(data))
       .catch((err) => console.warn("Failed to load catalog from DB:", err));
   }, []);
+
+  const compatList = useMemo(() => {
+    if (!rawCompat.length) return analogs;
+    const currentList = rawCompat.filter((item) => item.target_os === targetOs);
+    if (!currentList.length) return analogs;
+    return currentList.map((item) => {
+      let label = "Есть";
+      if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
+      else if (item.status === "web_alternative") label = "Вручную";
+      else if (item.status === "partially_compatible") label = "Частично";
+      return [item.software_name, item.domestic_alternative || "—", label];
+    });
+  }, [rawCompat, targetOs]);
 
   const rows = useMemo(() => fleet.map((w) => w.fromBackend ? w : evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
@@ -124,7 +158,7 @@ function App() {
       setError("");
       const formData = new FormData();
       formData.append("file", f);
-      formData.append("target_os", "Astra Linux Special Edition 1.7");
+      formData.append("target_os", targetOs);
 
       const res = await fetch("/api/v1/audit/upload", {
         method: "POST",
@@ -226,7 +260,7 @@ function App() {
                       </button>
                     ))}
                   </div>
-                  <div className="hero-criteria"><Criteria c={c} set={setC} /></div>
+                  <div className="hero-criteria"><Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} /></div>
                 </div>
                 <Mosaic rows={rows} scanKey={scanKey} focus={focus} onPick={setSelected} />
               </section>
@@ -249,7 +283,7 @@ function App() {
 
           {page === "criteria" && (
             <section className="content-grid">
-              <Panel title="Критерии оборудования" hint="Изменения сразу пересчитывают статусы всех рабочих мест."><Criteria c={c} set={setC} /></Panel>
+              <Panel title="Критерии оборудования" hint="Изменения сразу пересчитывают статусы всех рабочих мест."><Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} /></Panel>
               <Panel title="Справочник совместимости ПО" hint="Чем заменяем привычные программы">
                 <table><tbody>
                   {compatList.map(([a, b, s]) => (
