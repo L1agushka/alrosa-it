@@ -83,7 +83,7 @@ export function evaluate(ws, c) {
   };
 }
 
-export const template = "id;user;department;os;ram;cores;programs;compatible\nАРМ-001;Иванов Иван;Бухгалтерия;Windows 10;8;4;14;12\n";
+export const template = "workstation_id,department,user_fullname,current_os,cpu_cores,ram_gb,disk_gb,installed_software\nWS-001,Бухгалтерия,Иванова А.С.,Windows 10 Pro,4,8,120,Microsoft Office 2016/2019; 1С:Предприятие (клиент); Google Chrome\n";
 
 export function download(filename, text) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });

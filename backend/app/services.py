@@ -5,6 +5,17 @@ from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from .models import TargetOSProfile, CompatibilityRule, SoftwareCatalog
 
+def _int(v) -> int:
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _str(v, default: str = "") -> str:
+    return default if v is None or pd.isna(v) else str(v).strip()
+
+
 def process_audit_file(
     file_bytes: bytes, 
     filename: str, 
@@ -17,7 +28,7 @@ def process_audit_file(
     """
     # 1. Читаем файл в Pandas DataFrame в зависимости от формата
     if filename.endswith(".csv"):
-        df = pd.read_csv(io.BytesIO(file_bytes))
+        df = pd.read_csv(io.BytesIO(file_bytes), sep=None, engine="python", encoding="utf-8-sig")
     elif filename.endswith((".xls", ".xlsx")):
         df = pd.read_excel(io.BytesIO(file_bytes))
     else:
@@ -52,14 +63,14 @@ def process_audit_file(
 
     # 3. Анализируем каждую строчку
     for _, row in df.iterrows():
-        ws_id = str(row.get("workstation_id", "Unknown"))
-        dept = str(row.get("department", "Общий"))
-        user = str(row.get("user_fullname", ""))
-        ram = int(row.get("ram_gb", 0))
-        cpu = int(row.get("cpu_cores", 0))
-        disk = int(row.get("disk_gb", 0))
-        
-        raw_soft = str(row.get("installed_software", ""))
+        ws_id = _str(row.get("workstation_id"), "Unknown")
+        dept = _str(row.get("department"), "Общий")
+        user = _str(row.get("user_fullname"))
+        ram = _int(row.get("ram_gb"))
+        cpu = _int(row.get("cpu_cores"))
+        disk = _int(row.get("disk_gb"))
+
+        raw_soft = _str(row.get("installed_software"))
         software_list = [s.strip() for s in raw_soft.split(";") if s.strip()]
 
         # Проверка 1: Аппаратные требования
