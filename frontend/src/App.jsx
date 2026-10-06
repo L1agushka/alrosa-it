@@ -138,6 +138,8 @@ function App() {
   const [page, setPage] = useState("dashboard");
   const [fleet, setFleet] = useState([]);
     const [auditSessions, setAuditSessions] = useState([]);
+  const [softwareStats, setSoftwareStats] = useState([]);
+  const [blockerStats, setBlockerStats] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("alrosa_user_id");
@@ -214,6 +216,24 @@ function App() {
 
   const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [w, rows.filter((r) => r.wave === w)]);
 
+
+
+  // Загрузка статистики категорий ПО из БД
+  useEffect(() => {
+    fetch("/api/v1/stats/software-categories")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setSoftwareStats(data || []))
+      .catch((err) => console.warn("Failed to load software stats:", err));
+  }, []);
+
+  // Загрузка статистики блокеров для выбранной целевой ОС
+  useEffect(() => {
+    if (!targetOs) return;
+    fetch(`/api/v1/stats/blockers?target_os_name=${encodeURIComponent(targetOs)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setBlockerStats(data))
+      .catch((err) => console.warn("Failed to load blocker stats:", err));
+  }, [targetOs]);
 
   const loadSession = async (sessionId) => {
     if (!sessionId) return;
@@ -356,6 +376,55 @@ function App() {
                   {!blockers.length && <p className="empty">Блокеров нет. Все рабочие места проходят критерии.</p>}
                 </div>
               </Panel>
+
+              <div className="content-grid" style={{ marginTop: 24 }}>
+                <Panel
+                  title="Стек корпоративного ПО по категориям"
+                  hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce((acc, s) => acc + s.count, 0)} позиций)`}
+                >
+                  <div className="category-bars">
+                    {softwareStats.map((item) => {
+                      const maxVal = Math.max(...softwareStats.map((s) => s.count), 1);
+                      const pct = Math.round((item.count / maxVal) * 100);
+                      return (
+                        <div className="category-bar-item" key={item.category}>
+                          <div className="category-bar-header">
+                            <span>{item.category}</span>
+                            <strong>{item.count} ПО</strong>
+                          </div>
+                          <div className="category-bar-track">
+                            <div className="category-bar-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!softwareStats.length && <p className="empty">Каталог ПО пуст.</p>}
+                  </div>
+                </Panel>
+
+                <Panel
+                  title={`Критические блокеры: ${targetOs}`}
+                  hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
+                >
+                  <div className="db-blockers-list">
+                    {blockerStats?.blockers?.map((b) => (
+                      <div className="db-blocker-card" key={b.name}>
+                        <div className="db-blocker-top">
+                          <strong>{b.name}</strong>
+                          <span className="db-blocker-badge">{b.category}</span>
+                        </div>
+                        <div className="db-blocker-alt">
+                          ↳ Рекомендуемый аналог: <strong>{b.alternative}</strong>
+                        </div>
+                        <div className="db-blocker-comment">{b.comment}</div>
+                      </div>
+                    ))}
+                    {(!blockerStats || !blockerStats.blockers?.length) && (
+                      <p className="empty">Для выбранной ОС критических блокеров в базе не обнаружено.</p>
+                    )}
+                  </div>
+                </Panel>
+              </div>
             </>
           )}
 
