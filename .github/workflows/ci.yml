@@ -44,7 +44,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install ruff pytest httpx
+          pip install ruff pytest httpx pytest-cov
 
       - name: Lint with Ruff
         run: |
@@ -55,7 +55,7 @@ jobs:
           DATABASE_URL: postgresql+psycopg://audit_user:audit_password@localhost:5432/alrosa_audit
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
-          pytest backend/tests/
+          pytest --cov=app --cov-report=term-missing backend/tests/
 
   # -----------------------------------------------------------
   # 2. Валидация сборки Frontend
