@@ -128,9 +128,20 @@ const mapServerWorkstations = (workstations) => {
   });
 };
 
+const SYSTEM_USERS = [
+  { id: "alex", name: "Алексей Старовойтов", role: "Системный администратор", initials: "АС" },
+  { id: "artur", name: "Артур Бучинский", role: "Ведущий архитектор", initials: "АБ" },
+  { id: "elena", name: "Елена Соколова", role: "Специалист ИБ", initials: "ЕС" },
+  { id: "dmitry", name: "Дмитрий Кузнецов", role: "ИТ-аудитор", initials: "ДК" },
+];
+
 function App() {
   const [page, setPage] = useState("dashboard");
-  const [fleet, setFleet] = useState(makeFleet);
+  const [fleet, setFleet] = useState([]);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("alrosa_user_id");
+    return SYSTEM_USERS.find((u) => u.id === saved) || SYSTEM_USERS[0];
+  });
   const [c, setC] = useState(defaultCriteria);
   const [scanKey, setScanKey] = useState(0);
   const [focus, setFocus] = useState(null);
@@ -246,8 +257,28 @@ function App() {
           ))}
         </nav>
         <div className="user-card">
-          <div className="avatar">АБ</div>
-          <div className="user-info"><strong>Артур Бучинский</strong><span>Администратор</span></div>
+          <div className="avatar">{currentUser.initials}</div>
+          <div className="user-info">
+            <select
+              className="user-select"
+              value={currentUser.id}
+              onChange={(e) => {
+                const u = SYSTEM_USERS.find((x) => x.id === e.target.value);
+                if (u) {
+                  setCurrentUser(u);
+                  localStorage.setItem("alrosa_user_id", u.id);
+                }
+              }}
+              title="Переключить учетную запись оператора"
+            >
+              {SYSTEM_USERS.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            <span>{currentUser.role}</span>
+          </div>
           <span className="online-dot" />
         </div>
       </aside>

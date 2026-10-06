@@ -25,3 +25,25 @@ body {
 * {
   box-sizing: border-box;
 }
+/* Стили селектора учетной записи */
+.user-select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+}
+.user-select:hover {
+  color: #38bdf8;
+}
+.user-select option {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 6px;
+}
