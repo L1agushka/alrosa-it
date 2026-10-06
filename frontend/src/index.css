@@ -25,25 +25,83 @@ body {
 * {
   box-sizing: border-box;
 }
-/* Стили селектора учетной записи */
+
+
+
+/* Аккуратная карточка оператора и селектор */
+.sidebar .user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar .user-card .avatar {
+  flex-shrink: 0;
+}
+
+.sidebar .user-card .online-dot {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sidebar .user-card .user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar .user-card .user-info span {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
 .user-select {
   background: transparent;
   border: none;
-  color: inherit;
+  color: #f1f5f9;
   font-weight: 600;
-  font-size: 0.88rem;
-  padding: 0;
+  font-size: 0.84rem;
+  line-height: 1.25;
+  padding: 0 20px 0 0;
   margin: 0;
   cursor: pointer;
   outline: none;
   font-family: inherit;
   width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  /* Убираем кривую нативную стрелку браузера */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  /* Элегантная аккуратная SVG-стрелочка с отступом */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  background-size: 11px;
 }
+
 .user-select:hover {
   color: #38bdf8;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
+
 .user-select option {
   background: #0f172a;
   color: #f1f5f9;
-  padding: 6px;
+  padding: 8px;
 }
