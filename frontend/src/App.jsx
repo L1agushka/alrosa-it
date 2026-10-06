@@ -83,6 +83,27 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [entered, setEntered] = useState(false);
+  const [compatList, setCompatList] = useState(analogs);
+
+  useEffect(() => {
+    fetch("/api/v1/catalog/compatibility")
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        // Фильтруем уникальный софт для целевой ОС (Astra Linux 1.7)
+        const astra = data.filter((item) => item.target_os === "Astra Linux Special Edition 1.7");
+        if (astra.length > 0) {
+          const mapped = astra.map((item) => {
+            let label = "Есть";
+            if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
+            else if (item.status === "web_alternative") label = "Вручную";
+            else if (item.status === "partially_compatible") label = "Частично";
+            return [item.software_name, item.domestic_alternative || "—", label];
+          });
+          setCompatList(mapped);
+        }
+      })
+      .catch((err) => console.warn("Failed to load catalog from DB:", err));
+  }, []);
 
   const rows = useMemo(() => fleet.map((w) => w.fromBackend ? w : evaluate(w, c)), [fleet, c]);
   const n = (s) => rows.filter((r) => r.status === s).length;
@@ -231,7 +252,7 @@ function App() {
               <Panel title="Критерии оборудования" hint="Изменения сразу пересчитывают статусы всех рабочих мест."><Criteria c={c} set={setC} /></Panel>
               <Panel title="Справочник совместимости ПО" hint="Чем заменяем привычные программы">
                 <table><tbody>
-                  {analogs.map(([a, b, s]) => (
+                  {compatList.map(([a, b, s]) => (
                     <tr key={a}><td><strong>{a}</strong></td><td>{b}</td><td><span className={`status ${s === "Есть" ? "ready" : s === "Нет аналога" ? "blocked" : "partial"}`}>{s}</span></td></tr>
                   ))}
                 </tbody></table>
