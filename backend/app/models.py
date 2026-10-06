@@ -77,4 +77,5 @@ class AuditSession(Base):
     filename = Column(String(255), nullable=False)
     target_os = Column(String(100), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    summary = Column(JSON, nullable=True)  # Сводная статистика результата
+    summary = Column(JSON, nullable=True)
+    workstations = Column(JSON, nullable=True)  # Сводная статистика результата

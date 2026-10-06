@@ -96,6 +96,38 @@ function ScanButton({ total, ready, onScan }) {
   );
 }
 
+
+const mapServerWorkstations = (workstations) => {
+  const statusMap = {
+    ready: "Готов",
+    upgrade_required: "Частично",
+    blocked: "Не готов"
+  };
+  return (workstations || []).map((ws) => {
+    const blockers = [];
+    (ws.hardware_issues || []).forEach((h) => {
+      blockers.push({ type: "Оборудование", text: h, fix: "Модернизировать комплектующие" });
+    });
+    (ws.blocking_software || []).forEach((s) => {
+      blockers.push({ type: "ПО", text: s, fix: "Заменить на отечественный аналог" });
+    });
+    return {
+      fromBackend: true,
+      id: ws.workstation_id,
+      user: ws.user_fullname || "—",
+      department: ws.department || "—",
+      os: "Windows",
+      ram: ws.hardware_issues?.length ? "2-4" : 8,
+      cores: 4,
+      programs: blockers.filter((b) => b.type === "ПО").length,
+      compatible: blockers.filter((b) => b.type === "ПО").length === 0 ? "Все" : "Частично",
+      status: statusMap[ws.status] || "Частично",
+      wave: ws.wave ? `Волна ${ws.wave}` : "—",
+      blockers,
+    };
+  });
+};
+
 function App() {
   const [page, setPage] = useState("dashboard");
   const [fleet, setFleet] = useState(makeFleet);
@@ -124,6 +156,16 @@ function App() {
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setRawCompat(data))
       .catch((err) => console.warn("Failed to load catalog from DB:", err));
+
+    fetch("/api/v1/audit/latest")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((latest) => {
+        if (latest && latest.workstations && latest.workstations.length > 0) {
+          setFleet(mapServerWorkstations(latest.workstations));
+          if (latest.target_os) setTargetOs(latest.target_os);
+        }
+      })
+      .catch((err) => console.warn("Failed to load latest audit session:", err));
   }, []);
 
   const compatList = useMemo(() => {
@@ -171,36 +213,7 @@ function App() {
       }
 
       const data = await res.json();
-      const statusMap = {
-        ready: "Готов",
-        upgrade_required: "Частично",
-        blocked: "Не готов"
-      };
-
-      const serverFleet = data.workstations.map((ws) => {
-        const blockers = [];
-        (ws.hardware_issues || []).forEach((h) => {
-          blockers.push({ type: "Оборудование", text: h, fix: "Модернизировать комплектующие" });
-        });
-        (ws.blocking_software || []).forEach((s) => {
-          blockers.push({ type: "ПО", text: s, fix: "Заменить на отечественный аналог" });
-        });
-
-        return {
-          fromBackend: true,
-          id: ws.workstation_id,
-          user: ws.user_fullname || "—",
-          department: ws.department || "—",
-          os: "Windows",
-          ram: ws.hardware_issues?.length ? "2-4" : 8,
-          cores: 4,
-          programs: blockers.filter((b) => b.type === "ПО").length,
-          compatible: blockers.filter((b) => b.type === "ПО").length === 0 ? "Все" : "Частично",
-          status: statusMap[ws.status] || "Частично",
-          wave: ws.wave ? `Волна ${ws.wave}` : "—",
-          blockers,
-        };
-      });
+      const serverFleet = mapServerWorkstations(data.workstations);
 
       setFleet(serverFleet);
       setScanKey((k) => k + 1);

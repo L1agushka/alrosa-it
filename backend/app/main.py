@@ -68,6 +68,43 @@ async def upload_audit_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка обработки файла: {str(e)}")
 
+
+@app.get("/api/v1/audit/latest")
+def get_latest_audit(db: Session = Depends(get_db)):
+    """Получить результаты последнего проведенного аудита"""
+    session = (
+        db.query(AuditSession)
+        .filter(AuditSession.workstations.isnot(None))
+        .order_by(AuditSession.created_at.desc())
+        .first()
+    )
+    if not session:
+        session = db.query(AuditSession).order_by(AuditSession.created_at.desc()).first()
+    if not session:
+        return None
+    return {
+        "id": session.id,
+        "filename": session.filename,
+        "target_os": session.target_os,
+        "created_at": session.created_at.isoformat(),
+        "summary": session.summary,
+        "workstations": session.workstations or []
+    }
+
+@app.get("/api/v1/audit/history/{session_id}")
+def get_audit_session_detail(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(AuditSession).filter(AuditSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Сессия аудита не найдена")
+    return {
+        "id": session.id,
+        "filename": session.filename,
+        "target_os": session.target_os,
+        "created_at": session.created_at.isoformat(),
+        "summary": session.summary,
+        "workstations": session.workstations or []
+    }
+
 @app.get("/api/v1/audit/history")
 def get_audit_history(db: Session = Depends(get_db)):
     sessions = db.query(AuditSession).order_by(AuditSession.created_at.desc()).all()

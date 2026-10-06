@@ -109,7 +109,8 @@ def process_audit_file(
     audit_session = AuditSession(
         filename=filename,
         target_os=target_os_name,
-        summary=summary
+        summary=summary,
+        workstations=results
     )
     db.add(audit_session)
     db.commit()
