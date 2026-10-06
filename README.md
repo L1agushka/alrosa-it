@@ -58,9 +58,9 @@ docker compose up -d --build
 ```
 Web-интерфейс (Frontend): http://localhost (порт 80)
 
-REST API Swagger (Backend): http://localhost:8000/docs
+REST API Swagger (Backend): http://localhost/docs
 
-Healthcheck: http://localhost:8000/health
+Healthcheck: http://localhost/health
 ```
 ```
 🛠️ Разработка и локальное подключение
