@@ -1,0 +1,48 @@
+# ───────── Python ─────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ───────── Virtual envs ─────────
+.venv/
+venv/
+env/
+ENV/
+
+# ───────── Testing ─────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ───────── Env files ─────────
+.env
+.env.*
+!.env.example
+
+# ───────── IDE ─────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ───────── OS ─────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───────── Logs ─────────
+*.log
+logs/
+
+# ───────── Docker ─────────
+pgdata/
