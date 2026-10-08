@@ -105,24 +105,30 @@ const mapServerWorkstations = (workstations) => {
   };
   return (workstations || []).map((ws) => {
     const blockers = [];
-    (ws.hardware_issues || []).forEach((h) => {
+    const assess = ws.assessment || {};
+    const hwIssues = assess.hardware_issues || ws.hardware_issues || [];
+    hwIssues.forEach((h) => {
       blockers.push({ type: "Оборудование", text: h, fix: "Модернизировать комплектующие" });
     });
-    (ws.blocking_software || []).forEach((s) => {
-      blockers.push({ type: "ПО", text: s, fix: "Заменить на отечественный аналог" });
+    const swBlockers = assess.blockers || ws.blocking_software || [];
+    swBlockers.forEach((s) => {
+      const name = typeof s === "object" ? (s.software_name || s.name || s.reason || "Несовместимое ПО") : s;
+      blockers.push({ type: "ПО", text: name, fix: "Заменить на отечественный аналог" });
     });
+    const realId = ws.workstation_ext_id || ws.workstation_id || `WS-${ws.id}`;
+    const installed = Array.isArray(ws.installed_software) ? ws.installed_software : [];
     return {
       fromBackend: true,
-      id: ws.workstation_id,
+      id: realId,
       user: ws.user_fullname || "—",
-      department: ws.department || "—",
-      os: "Windows",
+      department: typeof ws.department === "object" ? (ws.department?.name || "—") : (ws.department || "—"),
+      os: ws.current_os || "Windows",
       ram: Number(ws.ram_gb) || 8,
       cores: Number(ws.cpu_cores) || 4,
       disk: Number(ws.disk_gb) || 256,
-      programs: Array.isArray(ws.installed_software) ? ws.installed_software.length : 4,
-      compatible: Math.max(0, (Array.isArray(ws.installed_software) ? ws.installed_software.length : 4) - (ws.blocking_software?.length || 0)),
-      blockingSoftware: ws.blocking_software || [],
+      programs: installed.length || 4,
+      compatible: Math.max(0, (installed.length || 4) - blockers.length),
+      blockingSoftware: swBlockers,
       blockers,
     };
   });
@@ -156,7 +162,7 @@ function App() {
   const [rawCompat, setRawCompat] = useState([]);
 
   useEffect(() => {
-    fetch("/api/v1/catalog/os-profiles")
+    fetch("/api/v1/catalog/os")
       .then((res) => (res.ok ? res.json() : []))
       .then((profiles) => {
         if (profiles.length > 0) {
@@ -225,18 +231,34 @@ function App() {
 
   // Загрузка статистики категорий ПО из БД
   useEffect(() => {
-    fetch("/api/v1/stats/software-categories")
+    fetch("/api/v1/catalog/software")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setSoftwareStats(data || []))
+      .then((data) => {
+        const counts = {};
+        (data || []).forEach((sw) => {
+          const cat = sw.category || "Прочее";
+          counts[cat] = (counts[cat] || 0) + 1;
+        });
+        const stats = Object.entries(counts).map(([category, count]) => ({ category, count }));
+        setSoftwareStats(stats);
+      })
       .catch((err) => console.warn("Failed to load software stats:", err));
   }, []);
 
   // Загрузка статистики блокеров для выбранной целевой ОС
   useEffect(() => {
-    if (!targetOs) return;
-    fetch(`/api/v1/stats/blockers?target_os_name=${encodeURIComponent(targetOs)}`)
+    fetch("/api/v1/stats/blockers")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setBlockerStats(data))
+      .then((data) => {
+        if (!data) return;
+        const blockers = (data.top_software || []).map((item) => ({
+          name: item.key,
+          category: "ПО",
+          alternative: "Отечественный аналог",
+          comment: `Блокирует миграцию на ${item.count} АРМ`
+        }));
+        setBlockerStats({ ...data, blockers });
+      })
       .catch((err) => console.warn("Failed to load blocker stats:", err));
   }, [targetOs]);
 
