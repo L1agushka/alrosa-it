@@ -1,6 +1,6 @@
 import pytest
 from app.services import process_audit_file
-from app.database import SessionLocal
+from app.core.database import SessionLocal
 from app.models import AuditSession
 
 @pytest.fixture
@@ -9,7 +9,7 @@ def db_session():
     try:
         yield db
     finally:
-        # Автоматическая изоляция: тесты подчищают за собой все временные записи
+        # Автоматическая изоляция: подчищаем тестовые записи
         db.query(AuditSession).filter(AuditSession.filename.startswith("test_fixture_")).delete()
         db.commit()
         db.close()
@@ -60,6 +60,9 @@ def test_invalid_file_format(db_session):
         process_audit_file(b"some content", "test_fixture_err.txt", "Astra Linux Special Edition 1.7", db_session)
 
 def test_unknown_target_os(db_session):
-    csv_data = "workstation_id,department,user_fullname,ram_gb,cpu_cores,disk_gb,installed_software\n".encode("utf-8")
-    with pytest.raises(ValueError, match="не найдена в базе данных"):
+    csv_data = (
+        "workstation_id,department,user_fullname,ram_gb,cpu_cores,disk_gb,installed_software\n"
+        "WS-TEST-ERR,Служба,Иванов И.И.,8,4,100,Telegram Desktop\n"
+    ).encode("utf-8")
+    with pytest.raises(ValueError, match="не найдена"):
         process_audit_file(csv_data, "test_fixture_err.csv", "NonExistentOS 9.9", db_session)
