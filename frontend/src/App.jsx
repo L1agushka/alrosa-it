@@ -1,3 +1,4 @@
+import SoftwareCatalog from "./SoftwareCatalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { Count, Panel, StatusBadge } from "./ui";
@@ -434,12 +435,8 @@ function App() {
           {page === "criteria" && (
             <section className="content-grid">
               <Panel title="Критерии оборудования" hint="Изменения сразу пересчитывают статусы всех рабочих мест."><Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} /></Panel>
-              <Panel title="Справочник совместимости ПО" hint="Чем заменяем привычные программы">
-                <table><tbody>
-                  {compatList.map(([a, b, s]) => (
-                    <tr key={a}><td><strong>{a}</strong></td><td>{b}</td><td><span className={`status ${s === "Есть" ? "ready" : s === "Нет аналога" ? "blocked" : "partial"}`}>{s}</span></td></tr>
-                  ))}
-                </tbody></table>
+              <Panel title="Справочник совместимости ПО" hint="Каталог решений и аналогов из базы данных">
+                <SoftwareCatalog />
               </Panel>
             </section>
           )}
