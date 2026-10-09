@@ -62,42 +62,7 @@ REST API Swagger (Backend): http://localhost/docs
 
 Healthcheck: http://localhost/health
 ```
-```
-🛠️ Разработка и локальное подключение
-Архитектура проекта
-Plaintext
-alrosa-it/
-├── .github/workflows/ci.yml   # Автоматический пайплайн (тесты, линтер, сборка)
-├── backend/
-│   ├── app/
-│   │   ├── main.py            # FastAPI роуты и lifespan-инициализация
-│   │   ├── models.py          # SQLAlchemy ORM-модели (AuditSession, Software, OS)
-│   │   ├── database.py        # Подключение к PostgreSQL (psycopg3)
-│   │   ├── services.py        # Бизнес-логика скоринга и парсинга отчетов
-│   │   └── seed.py            # Наполнение справочников ПО и профилей ОС
-│   ├── tests/                 # Модульные и интеграционные тесты
-│   │   ├── conftest.py        # Фикстуры автосоздания тестовой БД
-│   │   ├── test_scoring.py    # Тестирование логики 3 волн
-│   │   └── test_api.py        # Тестирование API контрактов
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx            # Основной компонент аналитического дашборда
-│   │   ├── App.css            # Адаптивные темы и стилизация виджетов
-│   │   └── ui.jsx             # UI-компоненты (Panel, StatusBadge, Count)
-│   └── Dockerfile
-└── docker-compose.yml
-Подключение к разработке Backend
-Создание виртуального окружения:
-```
-```
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install ruff pytest pytest-cov
-```
+
 Запуск базы данных для локальной разработки:
 
 ```
@@ -133,12 +98,3 @@ ls -la alrosa_audit_100_workstations.csv
 
 ---
 
-### Шаг 3. Закоммить и запушить
-
-Теперь в терминале выполняем всего три короткие команды:
-
-```
-git add README.md
-git commit -m "docs: enrich README with badges, quickstart, and development guide"
-git push origin main
-```
