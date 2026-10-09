@@ -5,7 +5,8 @@ import Mosaic from "./Mosaic";
 import Builder from "./Builder";
 import Workstations from "./Workstations";
 import Welcome from "./Welcome";
-import { analogs, defaultCriteria, download, evaluate, parseCsv, template } from "./engine";
+import MLAnalytics from "./MLAnalytics";
+import { analogs, defaultCriteria, download, evaluate, template } from "./engine";
 
 const navigation = [
   { id: "dashboard", icon: "◇", title: "Обзор" },
@@ -14,6 +15,7 @@ const navigation = [
   { id: "waves", icon: "≋", title: "Волны перехода" },
   { id: "report", icon: "▤", title: "Отчёт" },
   { id: "builder", icon: "⬡", title: "Конфигуратор ПК" },
+  { id: "ml", icon: "⌬", title: "ML-Аналитика" },
 ];
 const statuses = ["Готов", "Частично", "Не готов"];
 
@@ -96,13 +98,7 @@ function ScanButton({ total, ready, onScan }) {
   );
 }
 
-
 const mapServerWorkstations = (workstations) => {
-  const statusMap = {
-    ready: "Готов",
-    upgrade_required: "Частично",
-    blocked: "Не готов"
-  };
   return (workstations || []).map((ws) => {
     const blockers = [];
     const assess = ws.assessment || {};
@@ -143,7 +139,7 @@ const SYSTEM_USERS = [
 function App() {
   const [page, setPage] = useState("dashboard");
   const [fleet, setFleet] = useState([]);
-    const [auditSessions, setAuditSessions] = useState([]);
+  const [auditSessions, setAuditSessions] = useState([]);
   const [softwareStats, setSoftwareStats] = useState([]);
   const [blockerStats, setBlockerStats] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -182,7 +178,6 @@ function App() {
       .then((data) => setRawCompat(data))
       .catch((err) => console.warn("Failed to load catalog from DB:", err));
 
-        // Загрузка списка сессий аудита
     fetch("/api/v1/audit/history")
       .then((res) => (res.ok ? res.json() : []))
       .then((sessions) => {
@@ -227,9 +222,6 @@ function App() {
 
   const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [w, rows.filter((r) => r.wave === w)]);
 
-
-
-  // Загрузка статистики категорий ПО из БД
   useEffect(() => {
     fetch("/api/v1/catalog/software")
       .then((r) => (r.ok ? r.json() : []))
@@ -245,7 +237,6 @@ function App() {
       .catch((err) => console.warn("Failed to load software stats:", err));
   }, []);
 
-  // Загрузка статистики блокеров для выбранной целевой ОС
   useEffect(() => {
     fetch("/api/v1/stats/blockers")
       .then((r) => (r.ok ? r.json() : null))
@@ -261,22 +252,6 @@ function App() {
       })
       .catch((err) => console.warn("Failed to load blocker stats:", err));
   }, [targetOs]);
-
-  const loadSession = async (sessionId) => {
-    if (!sessionId) return;
-    try {
-      setError("");
-      const res = await fetch(`/api/v1/audit/history/${sessionId}`);
-      if (!res.ok) throw new Error("Не удалось загрузить выбранную сессию аудита");
-      const session = await res.json();
-      setCurrentSessionId(session.id);
-      if (session.target_os) setTargetOs(session.target_os);
-      setFleet(mapServerWorkstations(session.workstations));
-      setScanKey((k) => k + 1);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   const upload = async (e) => {
     const f = e.target.files[0];
@@ -299,10 +274,9 @@ function App() {
 
       const data = await res.json();
       const serverFleet = mapServerWorkstations(data.workstations);
-
-            setFleet(serverFleet);
+      setFleet(serverFleet);
       setScanKey((k) => k + 1);
-      // Обновляем список сессий
+
       fetch("/api/v1/audit/history")
         .then((r) => r.ok && r.json())
         .then((s) => {
@@ -368,7 +342,7 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <h1 key={page}>{navigation.find((i) => i.id === page).title}</h1>
+          <h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1>
           <ScanButton total={rows.length} ready={ready} onScan={scan} />
         </header>
 
@@ -378,7 +352,7 @@ function App() {
               <section className="hero">
                 <div className="hero-text">
                   <p>Готовность парка к переходу на отечественную ОС</p>
-                  <div className="hero-num"><Count to={(ready / rows.length) * 100} decimals={1} suffix="%" /></div>
+                  <div className="hero-num"><Count to={(ready / (rows.length || 1)) * 100} decimals={1} suffix="%" /></div>
                   <span className="hero-sub">{ready} из {rows.length} рабочих мест можно переводить уже сейчас</span>
                   <div className="legend-btns">
                     {statuses.map((s) => (
@@ -505,6 +479,8 @@ function App() {
           )}
 
           {page === "builder" && <Builder criteria={c} />}
+
+          {page === "ml" && <MLAnalytics fleet={fleet} onPick={setSelected} />}
         </div>
       </main>
 

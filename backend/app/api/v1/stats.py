@@ -2,6 +2,7 @@
 Агрегаты для дашборда: сводка, распределение по отделам, топ блокеров, волны.
 Все эндпоинты работают с последней сессией аудита (или с указанной явно).
 """
+from app.services.ml_service import ml_risk_service
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -219,3 +220,24 @@ def get_waves_distribution(
         WaveDistribution(wave=w, status=s.value, count=c)
         for w, s, c in rows
     ]
+
+@router.get("/ml-risk", summary="Предиктивный ML-скоринг рисков миграции")
+def get_ml_risk_stats(db: Session = Depends(get_db)):
+    """
+    Возвращает оценку вероятности инцидентов на базе обученной модели Random Forest,
+    топ факторов риска и распределение по парку.
+    """
+    # 1. Пробуем взять рабочие места из последнего аудита
+    workstations = []
+    try:
+        from app.models import AuditSession, Workstation
+        latest = db.query(AuditSession).order_by(AuditSession.created_at.desc()).first()
+        if latest and getattr(latest, "workstations", None):
+            workstations = latest.workstations
+        else:
+            workstations = db.query(Workstation).all()
+    except Exception as e:
+        print(f"[ML-Risk] Предупреждение при запросе БД: {e}")
+
+    result = ml_risk_service.predict_risk(workstations)
+    return result

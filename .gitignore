@@ -46,3 +46,7 @@ logs/
 
 # ───────── Docker ─────────
 pgdata/
+.venv/
+__pycache__/
+*.pyc
+frontend/public/ml-dashboard.html
