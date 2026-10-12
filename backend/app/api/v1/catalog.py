@@ -1,3 +1,4 @@
+from app.api.v1.rules import get_custom_rules_store
 """
 Справочники: целевые ОС, каталог ПО, матрица совместимости.
 Все эндпоинты — read-only.
@@ -101,7 +102,8 @@ def list_compatibility_rules(
 
     rows = query.order_by(Software.name, OperatingSystem.name).all()
 
-    return [
+    # Формируем список стандартных правил из БД
+    db_rules = [
         CompatibilityRuleRead(
             id=rule.id,
             software_id=rule.software_id,
@@ -115,3 +117,36 @@ def list_compatibility_rules(
         )
         for rule, sw_name, os_name in rows
     ]
+
+    # Динамически подмешиваем пользовательские политики АЛРОСА
+    status_type = CompatibilityRuleRead.model_fields["status"].annotation
+    members = getattr(status_type, "__members__", {})
+    blk_enum = next((m for k, m in members.items() if any(w in k.lower() for w in ["incompat", "block", "bad"])), "incompatible")
+    nat_enum = next((m for k, m in members.items() if any(w in k.lower() for w in ["native", "ready", "ok"])), "native")
+    alt_enum = next((m for k, m in members.items() if any(w in k.lower() for w in ["alt", "check", "warn"])), "alternative")
+
+    custom_rules = []
+    for idx, crule in enumerate(get_custom_rules_store()):
+        st = crule.get("status", "blocker")
+        is_blk = (st == "blocker")
+        assigned_status = blk_enum if is_blk else (nat_enum if st == "native_ready" else alt_enum)
+
+        if is_blocker is not None and is_blk != is_blocker:
+            continue
+
+        custom_rules.append(
+            CompatibilityRuleRead(
+                id=90000 + idx,
+                software_id=90000 + idx,
+                software_name=crule.get("software_name"),
+                target_os_id=target_os_id or 1,
+                target_os_name="Astra Linux Special Edition 1.7",
+                status=assigned_status,
+                analog_name=crule.get("alternative"),
+                is_blocker=is_blk,
+                comment=f"CUSTOM_RULE:{crule.get('id', '')}|" + (crule.get("note") or crule.get("category") or ""),
+            )
+        )
+
+    # Кастомные правила идут первыми, перекрывая дефолты при совпадении имён
+    return custom_rules + db_rules

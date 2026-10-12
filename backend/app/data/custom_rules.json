@@ -1,0 +1,20 @@
+[
+  {
+    "software_name": "Camp Nou",
+    "pattern": "camp nou",
+    "category": "Специализированное отраслевое ПО",
+    "status": "blocker",
+    "alternative": "Не применимо",
+    "note": "Требуется проверка функционирования под Astra Linux.",
+    "id": "RULE-1"
+  },
+  {
+    "software_name": "Steam",
+    "pattern": "steam",
+    "category": "Специализированное отраслевое ПО",
+    "status": "manual_check",
+    "alternative": "Индивидуальный аудит совместимости с вендором",
+    "note": "Требуется проверка функционирования под Astra Linux.",
+    "id": "RULE-2"
+  }
+]

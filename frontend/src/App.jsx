@@ -1,3 +1,5 @@
+import RulesAndNLPTab from "./RulesAndNLPTab";
+import WorkstationModal from "./WorkstationModal";
 import SoftwareCatalog from "./SoftwareCatalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
@@ -17,6 +19,7 @@ const navigation = [
   { id: "report", icon: "▤", title: "Отчёт" },
   { id: "builder", icon: "⬡", title: "Конфигуратор ПК" },
   { id: "ml", icon: "⌬", title: "ML-Аналитика" },
+  { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
 ];
 const statuses = ["Готов", "Частично", "Не готов"];
 
@@ -478,24 +481,13 @@ function App() {
           {page === "builder" && <Builder criteria={c} />}
 
           {page === "ml" && <MLAnalytics fleet={fleet} onPick={setSelected} />}
+
+          {page === "nlp-rules" && <RulesAndNLPTab />}
         </div>
       </main>
 
       {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header"><h2>{selected.id}</h2><button className="close-button" aria-label="Закрыть" onClick={() => setSelected(null)}>×</button></div>
-            <div className="modal-status"><StatusBadge status={selected.status} /><span>{selected.wave}</span></div>
-            <div className="details-grid">
-              <div><span>Сотрудник</span><strong>{selected.user}</strong></div>
-              <div><span>Отдел</span><strong>{selected.department}</strong></div>
-              <div><span>ОЗУ / ядра</span><strong>{selected.ram} ГБ / {selected.cores}</strong></div>
-              <div><span>ПО с аналогом</span><strong>{selected.compatible} из {selected.programs}</strong></div>
-            </div>
-            <h3 className="modal-sub">Блокеры и что делать</h3>
-            {selected.blockers.length ? selected.blockers.map((b) => <div className="check-row" key={b.type}><span>{b.text}</span><em>{b.fix}</em></div>) : <p className="empty">Блокеров нет. Можно переводить.</p>}
-          </div>
-        </div>
+        <WorkstationModal selected={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );

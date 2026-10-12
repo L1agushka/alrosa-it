@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rule-torrent",
+    "pattern": "torrent",
+    "software_name": "BitTorrent / uTorrent",
+    "category": "Сетевой анализ, диагностика и системные утилиты",
+    "status": "blocker",
+    "alternative": "Запрещено регламентом ИБ",
+    "note": "Критический блокер: P2P трафик запрещен политикой безопасности АЛРОСА"
+  },
+  {
+    "id": "rule-anydesk",
+    "pattern": "anydesk",
+    "software_name": "AnyDesk",
+    "category": "Удаленный доступ и администрирование",
+    "status": "blocker",
+    "alternative": "RuDesktop / Remmina",
+    "note": "Критический блокер: Неконтролируемый удаленный доступ запрещен"
+  }
+]
