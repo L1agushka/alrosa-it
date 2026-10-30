@@ -1,4 +1,14 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: alrosa_audit_ollama
+    networks:
+      - internal_net
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
   db:
     image: postgres:16-alpine
     container_name: alrosa_audit_db
@@ -51,6 +61,7 @@ services:
       - internal_net
 
 volumes:
+  ollama_data:
   pgdata:
 
 networks:

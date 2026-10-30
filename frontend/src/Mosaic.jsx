@@ -90,7 +90,7 @@ export default function Mosaic({ rows, scanKey, focus, onPick }) {
         ) : <span className="mz-hint">{mode === "grid" ? "Один шестиугольник = одно рабочее место" : "Камни перегруппированы"}</span>}
       </div>
 
-      {mode === "office" ? (
+      {!rows.length ? <div className="map-empty"><span aria-hidden="true">◇</span><strong>Карта появится после загрузки реестра</strong><p>Каждая грань — отдельное рабочее место.<br />Цвет отражает результат оценки по критериям.</p></div> : mode === "office" ? (
         <Office rows={rows} di={di} focus={focus} onPick={onPick} scanKey={scanKey} done={done} />
       ) : (
         <div className="mz-stage">

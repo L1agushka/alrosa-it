@@ -180,7 +180,7 @@ export default function RulesAndNLPTab() {
         title="🌐 Интеллектуальный классификатор ПО (Disambiguation & Manual Mapping)"
         hint="Семантическое сопоставление сущностей, выбор кандидатов и управление корпоративными блокираторами"
       >
-        <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1.35fr", gap: "24px" }}>
+        <div className="policy-workbench" style={{ display: "grid", gridTemplateColumns: "1.05fr 1.35fr", gap: "24px" }}>
           <div>
             <label style={{ fontSize: "13px", color: "var(--muted)", display: "block", marginBottom: "8px" }}>
               Поиск программы или файла инвентаризации:

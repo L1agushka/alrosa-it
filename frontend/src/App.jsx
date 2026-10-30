@@ -3,6 +3,7 @@ import WorkstationModal from "./WorkstationModal";
 import SoftwareCatalog from "./SoftwareCatalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import "./dispatch.css";
 import { Count, Panel, StatusBadge } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
@@ -310,9 +311,10 @@ function App() {
           <svg viewBox="0 0 32 32" className="brand-logo"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
           <div><div className="brand-title">ALROSA IT</div><div className="brand-subtitle">Центр миграции</div></div>
         </div>
-        <nav className="navigation">
+        <div className="sidebar-caption">РАБОЧАЯ СРЕДА</div>
+        <nav className="navigation" aria-label="Разделы системы">
           {navigation.map((i) => (
-            <button key={i.id} className={`nav-item ${page === i.id ? "active" : ""}`} onClick={() => setPage(i.id)}>
+            <button key={i.id} aria-current={page === i.id ? "page" : undefined} className={`nav-item ${page === i.id ? "active" : ""}`} onClick={() => setPage(i.id)}>
               <span className="nav-icon">{i.icon}</span><span>{i.title}</span>
             </button>
           ))}
@@ -346,7 +348,7 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1>
+          <div><span className="page-eyebrow">ALROSA IT / ЦЕНТР МИГРАЦИИ</span><h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1></div>
           <ScanButton total={rows.length} ready={ready} onScan={scan} />
         </header>
 
@@ -355,9 +357,9 @@ function App() {
             <>
               <section className="hero">
                 <div className="hero-text">
-                  <p>Готовность парка к переходу на отечественную ОС</p>
-                  <div className="hero-num"><Count to={(ready / (rows.length || 1)) * 100} decimals={1} suffix="%" /></div>
-                  <span className="hero-sub">{ready} из {rows.length} рабочих мест можно переводить уже сейчас</span>
+                  <p className="section-kicker">ОЦЕНКА ПО ТЕКУЩИМ КРИТЕРИЯМ</p><h2 className="fleet-title">Парк под контролем.</h2>
+                  <div className="hero-num">{rows.length ? <Count to={(ready / rows.length) * 100} decimals={1} suffix="%" /> : "—"}</div>
+                  <span className="hero-sub">{rows.length ? `${ready} из ${rows.length} рабочих мест соответствуют текущим критериям` : "Пока нет данных для оценки парка"}</span>
                   <div className="legend-btns">
                     {statuses.map((s) => (
                       <button key={s} className={`chip ${focus === s ? "on" : ""}`} onClick={() => setFocus(focus === s ? null : s)}>
@@ -365,7 +367,7 @@ function App() {
                       </button>
                     ))}
                   </div>
-                  <div className="hero-criteria"><Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} /></div>
+                  <p className="assessment-note">Соответствие критериям не заменяет проверку драйверов и прикладных сценариев.</p><div className="hero-criteria"><Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} /></div>
                 </div>
                 <Mosaic rows={rows} scanKey={scanKey} focus={focus} onPick={setSelected} />
               </section>
@@ -378,7 +380,7 @@ function App() {
                       <div><strong>{t}</strong><span>{v.fix}</span></div>
                     </div>
                   ))}
-                  {!blockers.length && <p className="empty">Блокеров нет. Все рабочие места проходят критерии.</p>}
+                  {!blockers.length && <p className="empty">{rows.length ? "Блокеров по текущим критериям нет." : "Загрузите реестр в разделе «Рабочие места», чтобы увидеть результаты."}</p>}
                 </div>
               </Panel>
 
@@ -450,7 +452,7 @@ function App() {
                 <div className="panel" key={w} style={{ "--i": i }}>
                   <div className="panel-header"><div><h3>{w === "—" ? "Не определено" : w}</h3><p>{list.length} рабочих мест</p></div></div>
                   <div className="chips">
-                    {list.slice(0, 36).map((r, k) => <span key={r.id} className={`mini ${r.status === "Готов" ? "ok" : r.status === "Частично" ? "warn" : "bad"}`} style={{ "--k": k }} onClick={() => setSelected(r)}>{r.id.slice(4)}</span>)}
+                    {list.slice(0, 36).map((r, k) => <button type="button" key={r.id} className={`mini ${r.status === "Готов" ? "ok" : r.status === "Частично" ? "warn" : "bad"}`} style={{ "--k": k }} onClick={() => setSelected(r)}>{r.id.slice(4)}</button>)}
                     {list.length > 36 && <span className="more">+{list.length - 36}</span>}
                   </div>
                 </div>

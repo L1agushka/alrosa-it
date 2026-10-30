@@ -1,11 +1,27 @@
-import { useState, useMemo } from "react";
-import { StatusBadge } from "./ui";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 export default function WorkstationModal({ selected, onClose }) {
   const [tab, setTab] = useState("shap"); // "overview" | "shap" | "playbook"
   const [copied, setCopied] = useState(false);
 
-  if (!selected) return null;
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    const handleKey = (event) => {
+      if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+      const items = dialogRef.current?.querySelectorAll('button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]');
+      if (!items?.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.body.style.overflow = oldOverflow; document.removeEventListener("keydown", handleKey); previous?.focus(); };
+  }, [onClose]);
 
   // Извлекаем чистые данные
   const ram = Number(selected.ram || 8);
@@ -171,12 +187,12 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: "780px", width: "95%" }} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="device-title" tabIndex={-1} className="modal" style={{ maxWidth: "780px", width: "95%" }} onClick={(e) => e.stopPropagation()}>
         {/* ХЕДЕР */}
         <div className="modal-header">
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <h2 style={{ margin: 0 }}>{selected.id}</h2>
+              <h2 id="device-title" style={{ margin: 0 }}>{selected.id}</h2>
               <span className="status ready" style={{ fontSize: "12px", padding: "2px 8px" }}>
                 {dept}
               </span>
@@ -188,10 +204,11 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
           <button className="close-button" aria-label="Закрыть" onClick={onClose}>×</button>
         </div>
 
+        <p className="assessment-note">Сценарные проценты и стоимость являются оценками. Они не подтверждают совместимость устройства.</p>
         {/* НАВИГАЦИЯ ВКЛАДОК */}
         <div className="seg" style={{ margin: "16px 0 20px" }}>
           <button className={tab === "shap" ? "on" : ""} onClick={() => setTab("shap")}>
-            Локальный SHAP Waterfall
+            Локальная оценка риска
           </button>
           <button className={tab === "playbook" ? "on" : ""} onClick={() => setTab("playbook")}>
             Контрфактический рецепт (What-If)
@@ -206,7 +223,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--panel-2)", padding: "14px 18px", borderRadius: "8px", border: "1px solid var(--line)", marginBottom: "16px" }}>
               <div>
-                <span style={{ fontSize: "12px", color: "var(--muted)", display: "block" }}>Предиктивная вероятность инцидента</span>
+                <span style={{ fontSize: "12px", color: "var(--muted)", display: "block" }}>Оценка риска · локальная эвристика</span>
                 <strong style={{ fontSize: "24px", color: shapData.totalRisk >= 50 ? "var(--bad)" : shapData.totalRisk >= 25 ? "var(--warn)" : "var(--ok)" }}>
                   {shapData.totalRisk}%
                 </strong>
@@ -220,7 +237,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
             </div>
 
             <h4 style={{ margin: "0 0 10px", fontSize: "13px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Декомпозиция решения Random Forest (Вклад признаков)
+              Вклад факторов локальной эвристики
             </h4>
             <div style={{ display: "grid", gap: "8px" }}>
               {shapData.items.map((item, idx) => (
@@ -295,9 +312,9 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
         {tab === "overview" && (
           <div>
             <div className="details-grid" style={{ marginBottom: "16px" }}>
-              <div><span>Оперативная память</span><strong>{ram} ГБ DDR4</strong></div>
-              <div><span>Процессор</span><strong>{cores} ядер / x86_64</strong></div>
-              <div><span>Накопитель</span><strong>{disk} ГБ SSD</strong></div>
+              <div><span>Оперативная память</span><strong>{ram} ГБ</strong></div>
+              <div><span>Процессор</span><strong>{cores} ядер</strong></div>
+              <div><span>Накопитель</span><strong>{disk} ГБ</strong></div>
               <div><span>Текущая ОС</span><strong>{os}</strong></div>
             </div>
 
