@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Panel } from "./ui";
+import ConfirmationDialog from "./design/ConfirmationDialog";
+import OpticalSurface from "./design/OpticalSurface";
 
 export const ENTERPRISE_CATEGORIES = {
   "ai_llm": {
@@ -177,7 +179,7 @@ export default function RulesAndNLPTab() {
     <div style={{ display: "grid", gap: "24px" }}>
       {/* КЛАССИФИКАТОР ПО С РУЧНЫМ СООТНЕСЕНИЕМ И ВЫБОРОМ БЛОКЕРА */}
       <Panel
-        title="🌐 Интеллектуальный классификатор ПО (Disambiguation & Manual Mapping)"
+        title="Классификатор программного обеспечения"
         hint="Семантическое сопоставление сущностей, выбор кандидатов и управление корпоративными блокираторами"
       >
         <div className="policy-workbench" style={{ display: "grid", gridTemplateColumns: "1.05fr 1.35fr", gap: "24px" }}>
@@ -189,6 +191,7 @@ export default function RulesAndNLPTab() {
               <input
                 className="search"
                 style={{ flex: 1, background: "var(--panel-2)" }}
+                aria-label="Название программы"
                 value={testInput}
                 onChange={(e) => setTestInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && runNlpMatch(testInput)}
@@ -226,10 +229,12 @@ export default function RulesAndNLPTab() {
                   {candidates.map((c, idx) => (
                     <div
                       key={idx}
+                      role="button" tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTestInput(c.label); runNlpMatch(c.label, c.description); } }}
                       onClick={() => { setTestInput(c.label); runNlpMatch(c.label, c.description); }}
                       style={{
                         padding: "8px 12px",
-                        background: "rgba(255,255,255,0.03)",
+                        background: "var(--surface)",
                         border: "1px solid var(--line)",
                         borderRadius: "6px",
                         cursor: "pointer",
@@ -261,7 +266,7 @@ export default function RulesAndNLPTab() {
                 <span style={{ fontSize: "12px", color: "var(--ice)", fontWeight: "600" }}>{nlpResult.method}</span>
                 {nlpResult.is_software && (
                   <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "var(--muted)", background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--muted)", background: "var(--surface-inset)", padding: "2px 6px", borderRadius: "4px" }}>
                       cos(θ) = {nlpResult.cosine_similarity}
                     </span>
                     <span className="status ready" style={{ fontSize: "12px" }}>
@@ -282,8 +287,8 @@ export default function RulesAndNLPTab() {
               {/* ЗАЩИТА: ОТКАЗ В РЕГИСТРАЦИИ НЕ-СОФТА */}
               {!nlpResult.is_software && !forceOverride ? (
                 <div style={{
-                  background: "rgba(239, 68, 68, 0.08)",
-                  border: "1px solid rgba(239, 68, 68, 0.25)",
+                  background: "var(--danger-soft)",
+                  border: "1px solid var(--line)",
                   borderRadius: "8px",
                   padding: "16px",
                   display: "grid",
@@ -292,7 +297,7 @@ export default function RulesAndNLPTab() {
                   <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                     <span style={{ fontSize: "22px", lineHeight: "1" }}>🚫</span>
                     <div>
-                      <strong style={{ fontSize: "14px", color: "#f87171", display: "block", marginBottom: "4px" }}>
+                      <strong style={{ fontSize: "14px", color: "var(--bad)", display: "block", marginBottom: "4px" }}>
                         Отказ в регистрации блокиратора ПО
                       </strong>
                       <span style={{ fontSize: "12px", color: "var(--muted)", lineHeight: "1.4", display: "block" }}>
@@ -301,7 +306,7 @@ export default function RulesAndNLPTab() {
                     </div>
                   </div>
 
-                  <div style={{ borderTop: "1px dashed rgba(239, 68, 68, 0.2)", paddingTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ borderTop: "1px dashed var(--line)", paddingTop: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
                       Требуется регистрация правила вопреки классификатору?
                     </span>
@@ -312,7 +317,7 @@ export default function RulesAndNLPTab() {
                         padding: "6px 12px",
                         fontSize: "11.5px",
                         color: "var(--ice)",
-                        borderColor: "rgba(56, 189, 248, 0.4)",
+                        borderColor: "var(--accent)",
                         fontWeight: "600",
                         display: "flex",
                         alignItems: "center",
@@ -326,14 +331,14 @@ export default function RulesAndNLPTab() {
                 </div>
               ) : (
                 /* РЕДАКТОР КОРПОРАТИВНОГО ПРАВИЛА (РАЗБЛОКИРОВАН ДЛЯ ПО ИЛИ ПО ПРИНУЖДЕНИЮ) */
-                <div style={{ background: "rgba(0,0,0,0.2)", padding: "14px", borderRadius: "6px", border: "1px solid var(--line)", display: "grid", gap: "12px" }}>
+                <div style={{ background: "var(--surface)", padding: "14px", borderRadius: "6px", border: "1px solid var(--line)", display: "grid", gap: "12px" }}>
                   {forceOverride && !nlpResult.is_software && (
                     <div style={{
                       padding: "8px 12px",
-                      background: "rgba(245, 158, 11, 0.12)",
-                      border: "1px solid rgba(245, 158, 11, 0.35)",
+                      background: "var(--warning-soft)",
+                      border: "1px solid var(--line)",
                       borderRadius: "6px",
-                      color: "#fbbf24",
+                      color: "var(--warn)",
                       fontSize: "11.5px",
                       display: "flex",
                       alignItems: "center",
@@ -349,6 +354,7 @@ export default function RulesAndNLPTab() {
                       🏷 Соотнести класс ПО:
                     </label>
                     <select
+                      aria-label="Класс программного обеспечения"
                       value={chosenCategory}
                       onChange={(e) => handleCategoryChange(e.target.value)}
                       style={{
@@ -372,6 +378,7 @@ export default function RulesAndNLPTab() {
                       ⚡ Статус в миграции (Влияет на скоринг парка):
                     </label>
                     <select
+                      aria-label="Статус в миграции"
                       value={customStatus}
                       onChange={(e) => setCustomStatus(e.target.value)}
                       style={{
@@ -397,6 +404,7 @@ export default function RulesAndNLPTab() {
                     <input
                       className="search"
                       style={{ width: "100%", background: "var(--bg)", fontSize: "13px", padding: "7px 10px" }}
+                      aria-label="Отечественный аналог"
                       value={customAlt}
                       onChange={(e) => setCustomAlt(e.target.value)}
                     />
@@ -431,7 +439,7 @@ export default function RulesAndNLPTab() {
               )}
 
               {isSavedBanner && (
-                <div style={{ marginTop: "10px", padding: "8px 12px", background: "rgba(34, 197, 94, 0.15)", border: "1px solid var(--ok)", borderRadius: "6px", color: "var(--ok)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ marginTop: "10px", padding: "8px 12px", background: "var(--success-soft)", border: "1px solid var(--ok)", borderRadius: "6px", color: "var(--ok)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                   <span>✔</span> <strong>Успешно сохранено!</strong> Статус применён к алгоритму скоринга и затронет все ПК с этим ПО.
                 </div>
               )}
@@ -446,20 +454,10 @@ export default function RulesAndNLPTab() {
 
       {/* МОДАЛЬНОЕ ОКНО ПРЕДУПРЕЖДЕНИЯ БЕЗОПАСНОСТИ */}
       {showWarningModal && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.75)",
-          backdropFilter: "blur(4px)",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px"
-        }}>
-          <div style={{
+        <ConfirmationDialog titleId="policy-warning-title" onCancel={() => setShowWarningModal(false)}>
+          <div className="policy-warning" style={{
             background: "var(--panel-2, #181d28)",
-            border: "1px solid rgba(239, 68, 68, 0.4)",
+            border: "1px solid var(--bad)",
             borderRadius: "12px",
             padding: "24px 28px",
             maxWidth: "520px",
@@ -468,12 +466,12 @@ export default function RulesAndNLPTab() {
             display: "grid",
             gap: "16px"
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "28px" }}>⚠️</span>
-              <h3 style={{ margin: 0, fontSize: "17px", color: "var(--text)", fontWeight: "700" }}>
+            <OpticalSurface level="premium" radius={12} className="policy-warning-heading">
+              <span aria-hidden="true" style={{ fontSize: "24px" }}>!</span>
+              <h3 id="policy-warning-title" style={{ margin: 0, fontSize: "17px", color: "var(--text)", fontWeight: "700" }}>
                 Предупреждение корпоративной безопасности
               </h3>
-            </div>
+            </OpticalSurface>
 
             <div style={{ fontSize: "13px", color: "var(--muted)", lineHeight: "1.5", display: "grid", gap: "10px" }}>
               <p style={{ margin: 0 }}>
@@ -481,9 +479,9 @@ export default function RulesAndNLPTab() {
               </p>
               <div style={{
                 padding: "10px 12px",
-                background: "rgba(239, 68, 68, 0.1)",
+                background: "var(--danger-soft)",
                 borderRadius: "6px",
-                borderLeft: "3px solid #ef4444",
+                borderLeft: "3px solid var(--bad)",
                 color: "var(--text)"
               }}>
                 В таком случае целевые ПК будут <strong>отключены от глобальной системы автоматической регистрации софта АЛРОСА</strong>, а правило получит флаг ручной изоляции (Manual Override).
@@ -501,7 +499,7 @@ export default function RulesAndNLPTab() {
               <button
                 style={{
                   padding: "8px 18px",
-                  background: "#ef4444",
+                  background: "var(--bad)",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -518,12 +516,12 @@ export default function RulesAndNLPTab() {
               </button>
             </div>
           </div>
-        </div>
+        </ConfirmationDialog>
       )}
 
       {/* ТАБЛИЦА ЗАКРЕПЛЕННЫХ ПРАВИЛ */}
       <Panel
-        title="🛡 Реестр пользовательских политик и зафиксированных соответствий"
+        title="Реестр корпоративных политик"
         hint="Правила, заданные или переопределенные системными администраторами АЛРОСА"
       >
         <div className="table-wrapper">

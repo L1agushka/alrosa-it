@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StatusBadge } from "./ui";
+import OpticalSurface from "./design/OpticalSurface";
+import useReducedMotion from "./design/useReducedMotion";
 
 /* ───────── данные ───────── */
 const parts = {
@@ -32,8 +34,10 @@ const P = (x, y) => [CX + (x - y) * 0.7071, CY + (x + y) * 0.7071 * 0.55];
 
 function useTween(target, ms = 650) {
   const [v, setV] = useState(target);
+  const reducedMotion = useReducedMotion();
   const from = useRef(target);
   useEffect(() => {
+    if (reducedMotion) { from.current = target; return; }
     const t0 = performance.now(), a = from.current;
     let raf;
     const tick = (t) => {
@@ -44,8 +48,8 @@ function useTween(target, ms = 650) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, ms]);
-  return v;
+  }, [target, ms, reducedMotion]);
+  return reducedMotion ? target : v;
 }
 
 /* ───────── детали сцены ───────── */
@@ -98,13 +102,13 @@ function Scene({ sel, tab, open, setTab, watts, psu }) {
   return (
     <svg viewBox="0 95 620 430" className={`bx-svg ${open ? "open" : ""}`} role="img" aria-label="Изометрическая схема системного блока">
       <defs>
-        <linearGradient id="bxBoard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1a2a3f" /><stop offset="1" stopColor="#0d1623" /></linearGradient>
-        <linearGradient id="bxChip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#dcebf6" /><stop offset="1" stopColor="#6d8aa0" /></linearGradient>
-        <pattern id="bxGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(127,216,255,.08)" /></pattern>
+        <linearGradient id="bxBoard" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#8b8a76" /><stop offset="1" stopColor="#44473b" /></linearGradient>
+        <linearGradient id="bxChip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#f0e4cf" /><stop offset="1" stopColor="#aaa58d" /></linearGradient>
+        <pattern id="bxGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(194,166,118,.15)" /></pattern>
       </defs>
 
       {/* плата */}
-      <g transform="translate(0 12)"><g transform={ISO}><rect x="-200" y="-150" width="400" height="300" rx="14" fill="#070b11" /></g></g>
+      <g transform="translate(0 12)"><g transform={ISO}><rect x="-200" y="-150" width="400" height="300" rx="14" fill="#2e3029" /></g></g>
       <g transform={ISO}>
         <rect x="-200" y="-150" width="400" height="300" rx="14" className="bx-board" />
         <rect x="-200" y="-150" width="400" height="300" rx="14" fill="url(#bxGrid)" />
@@ -215,13 +219,13 @@ export default function Builder({ criteria }) {
   return (
     <section className="bx">
       <div className="bx-stage">
-        <div className="bx-top">
+        <OpticalSurface level="standard" radius={12} className="bx-top">
           <div className="seg">
             <button className={!open ? "on" : ""} onClick={() => setOpen(false)}>Собрать</button>
             <button className={open ? "on" : ""} onClick={() => setOpen(true)}>Разобрать</button>
           </div>
           <span className="bx-hint">Нажмите на деталь или подпись</span>
-        </div>
+        </OpticalSurface>
         <Scene sel={sel} tab={tab} open={open} setTab={setTab} watts={s.watts} psu={s.psu} />
       </div>
 

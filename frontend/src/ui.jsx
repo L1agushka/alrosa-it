@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import useReducedMotion from "./design/useReducedMotion";
 
 /* ───────── утилиты ───────── */
 export function useCountUp(target, duration = 1100) {
   const [value, setValue] = useState(0);
+  const reducedMotion = useReducedMotion();
   useEffect(() => {
+    if (reducedMotion) return;
     let raf;
     const start = performance.now();
     const tick = (now) => {
@@ -13,8 +16,8 @@ export function useCountUp(target, duration = 1100) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-  return value;
+  }, [target, duration, reducedMotion]);
+  return reducedMotion ? target : value;
 }
 
 export function Count({ to, decimals = 0, suffix = "" }) {
@@ -29,7 +32,7 @@ export function StatusBadge({ status }) {
 
 export function Panel({ title, hint, action, children, className = "" }) {
   return (
-    <div className={`panel ${className}`}>
+    <section className={`panel ${className}`}>
       <div className="panel-header">
         <div>
           <h3>{title}</h3>
@@ -38,7 +41,7 @@ export function Panel({ title, hint, action, children, className = "" }) {
         {action}
       </div>
       {children}
-    </div>
+    </section>
   );
 }
 

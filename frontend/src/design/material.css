@@ -1,0 +1,77 @@
+.optical {
+  position:relative;
+  border:1px solid var(--glass-rim);
+  background:transparent;
+  box-shadow:var(--glass-shadow);
+  color:var(--text)
+}
+.optical>.optical-tint,.optical>.optical-shine {
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none
+}
+.optical>.optical-tint {
+  background:var(--glass-tint)
+}
+.optical>.optical-shine {
+  background-size:100% 100%;
+  opacity:.8
+}
+.optical-content {
+  position:relative;
+  display:flex;
+  align-items:inherit;
+  justify-content:inherit;
+  gap:inherit;
+  width:100%
+}
+.optical-content>* {
+  position:relative
+}
+.optical-defs {
+  position:absolute;
+  pointer-events:none
+}
+.optical-subtle {
+  box-shadow:inset 0 1px 0 #fff6;
+  border-color:var(--line)
+}
+.optical-subtle>.optical-tint {
+  background:var(--surface)
+}
+.optical-standard {
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px)
+}
+.optical-premium:not(.optical-refractive) {
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px)
+}
+@supports not (backdrop-filter:blur(1px)) {
+  .optical>.optical-tint {
+    background:var(--surface);
+    mask-image:none!important
+  }
+}
+@media(prefers-reduced-transparency:reduce) {
+  .optical {
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important
+  }
+  .optical>.optical-tint {
+    background:var(--surface);
+    mask-image:none!important
+  }
+}
+@media(forced-colors:active) {
+  .optical {
+    background:Canvas;
+    color:CanvasText;
+    border:1px solid CanvasText;
+    backdrop-filter:none!important
+  }
+  .optical-tint,.optical-shine {
+    display:none
+  }
+}

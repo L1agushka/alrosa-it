@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import OpticalSurface from "./design/OpticalSurface";
 import Office from "./Office";
 
 const cls = { "Готов": "ok", "Частично": "warn", "Не готов": "bad" };
@@ -78,9 +79,9 @@ export default function Mosaic({ rows, scanKey, focus, onPick }) {
     <div className="mz" onPointerOver={over} onPointerLeave={(e) => clear(e.currentTarget)} onFocus={over} onBlur={(e) => clear(e.currentTarget)}>
       <style>{css}</style>
       <div className="mz-bar">
-        <div className="seg" role="tablist">
+        <OpticalSurface level="premium" radius={14} className="seg" role="tablist" aria-label="Представление парка">
           {modes.map(([k, l]) => <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? "on" : ""} onClick={() => setMode(k)}>{l}</button>)}
-        </div>
+        </OpticalSurface>
         {mode === "office" ? (
           <div className="move">
             <span>Переезд на новую ОС</span>

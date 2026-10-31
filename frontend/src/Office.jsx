@@ -23,8 +23,8 @@ function plan(rows) {
    вместо ~9 узлов на человека остаётся 2–3 */
 const bub = (stroke, ch) => (
   <>
-    <circle cy="-22" r="5.5" style={{ fill: "#1c2838", stroke }} />
-    <text y="-19.2" style={{ fill: "#e8eef5", fontSize: 8, fontWeight: 800, textAnchor: "middle" }}>{ch}</text>
+    <circle cy="-22" r="5.5" style={{ fill: "#e9e2d4", stroke }} />
+    <text y="-19.2" style={{ fill: "#34372d", fontSize: 8, fontWeight: 800, textAnchor: "middle" }}>{ch}</text>
   </>
 );
 
@@ -37,14 +37,14 @@ function Office({ rows, di, focus, onPick, scanKey, done }) {
       <svg viewBox={`0 0 ${W} ${h + 6}`} className="mz-svg" key={scanKey}>
         <defs>
           <g id="of-pc">
-            <rect x="-6" y="-3" width="12" height="11" rx="5" style={{ fill: "#3a4b63" }} />
+            <rect x="-6" y="-3" width="12" height="11" rx="5" style={{ fill: "#777b63" }} />
             <circle cy="-8" r="4.6" style={{ fill: "#e6d8c9" }} />
-            <rect x="-12" y="4" width="24" height="9" rx="2.5" style={{ fill: "#1a2433", stroke: "#2e3f56" }} />
+            <rect x="-12" y="4" width="24" height="9" rx="2.5" style={{ fill: "#c4bfaa", stroke: "#787760" }} />
             <rect x="-6" y="5.2" width="12" height="5.6" rx="1.2" style={{ fill: "var(--scr)" }} />
           </g>
-          <g id="of-bb">{bub("#de6b78", "!")}</g>
-          <g id="of-bw">{bub("#e3b062", "…")}</g>
-          <path id="of-tk" d="M-3 -22 l2.4 2.6 l4.2 -5" style={{ fill: "none", stroke: "#7fd8ff", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }} />
+          <g id="of-bb">{bub("var(--bad)", "!")}</g>
+          <g id="of-bw">{bub("var(--warn)", "…")}</g>
+          <path id="of-tk" d="M-3 -22 l2.4 2.6 l4.2 -5" style={{ fill: "none", stroke: "var(--accent)", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }} />
         </defs>
 
         {rooms.map((room, ri) => (

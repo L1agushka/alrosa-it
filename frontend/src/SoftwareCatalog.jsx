@@ -68,18 +68,19 @@ export default function SoftwareCatalog() {
   const customCount = items.filter((i) => i.comment && i.comment.startsWith("CUSTOM_RULE:")).length;
 
   return (
-    <div>
+    <div className="software-catalog">
       {/* ПАНЕЛЬ УПРАВЛЕНИЯ: ПОИСК, ФИЛЬТР И КНОПКА ОБНОВЛЕНИЯ */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
+      <div className="catalog-toolbar" style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
         <input
           className="search"
           style={{ flex: 1, padding: "8px 14px", fontSize: "13px" }}
+          aria-label="Поиск программы или аналога"
           placeholder={`Поиск по ${items.length} программам каталога...`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <select
+        <select aria-label="Статус совместимости ПО"
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           style={{
@@ -108,7 +109,7 @@ export default function SoftwareCatalog() {
             gap: "6px",
             fontSize: "13px",
             cursor: "pointer",
-            background: refreshing ? "rgba(56, 189, 248, 0.15)" : undefined,
+            background: refreshing ? "var(--accent-soft)" : undefined,
             color: refreshing ? "var(--ice)" : undefined,
             border: "1px solid var(--line)",
             borderRadius: "6px",
@@ -122,14 +123,14 @@ export default function SoftwareCatalog() {
               transform: refreshing ? "rotate(360deg)" : "rotate(0deg)"
             }}
           >
-            🔄
+            ↻
           </span>
           <span>{refreshing ? "Синхронизация..." : "Обновить"}</span>
         </button>
       </div>
 
       <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
-        <span>🛡</span> В каталог включено <strong>{customCount}</strong> правил из реестра кастомных политик.
+        <span aria-hidden="true">◇</span> В каталог включено <strong>{customCount}</strong> правил из реестра кастомных политик.
       </div>
 
       {/* ТАБЛИЦА СОВМЕСТИМОСТИ */}
@@ -165,9 +166,9 @@ export default function SoftwareCatalog() {
                         <span
                           style={{
                             fontSize: "10px",
-                            background: "rgba(56, 189, 248, 0.12)",
+                            background: "var(--accent-soft)",
                             color: "var(--ice)",
-                            border: "1px solid rgba(56, 189, 248, 0.3)",
+                            border: "1px solid var(--line)",
                             borderRadius: "4px",
                             padding: "1px 6px"
                           }}

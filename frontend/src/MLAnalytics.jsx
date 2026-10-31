@@ -218,6 +218,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
 
   return (
     <>
+      {!data && <p className="data-availability" role="status">Данные ML-оценки не получены. Нулевые показатели ниже не означают отсутствие риска.</p>}
       {/* ВЕРХНЯЯ СВОДКА С КНОПКОЙ ДОРОЖНОЙ КАРТЫ */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
         <div style={{ fontSize: "14px", color: "var(--muted)" }}>
@@ -240,7 +241,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
             cursor: "pointer"
           }}
         >
-          <span>📄</span> Сформировать дорожную карту (CSV)
+          <span aria-hidden="true">↗</span> Сформировать дорожную карту (CSV)
         </button>
       </div>
 
@@ -285,7 +286,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "16px" }}>
           <label className={`chip ${simRam ? "on" : ""}`} style={{ cursor: "pointer", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "center" }}>
-            <input type="checkbox" checked={simRam} onChange={(e) => setSimRam(e.target.checked)} style={{ display: "none" }} />
+            <input type="checkbox" checked={simRam} onChange={(e) => setSimRam(e.target.checked)} className="scenario-checkbox" />
             <i className="ok" />
             <div>
               <strong>Апгрейд памяти до 16 ГБ</strong>
@@ -294,7 +295,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
           </label>
 
           <label className={`chip ${simCad ? "on" : ""}`} style={{ cursor: "pointer", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "center" }}>
-            <input type="checkbox" checked={simCad} onChange={(e) => setSimCad(e.target.checked)} style={{ display: "none" }} />
+            <input type="checkbox" checked={simCad} onChange={(e) => setSimCad(e.target.checked)} className="scenario-checkbox" />
             <i className="warn" />
             <div>
               <strong>Замена AutoCAD → nanoCAD</strong>
@@ -303,7 +304,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
           </label>
 
           <label className={`chip ${simWeb1c ? "on" : ""}`} style={{ cursor: "pointer", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "center" }}>
-            <input type="checkbox" checked={simWeb1c} onChange={(e) => setSimWeb1c(e.target.checked)} style={{ display: "none" }} />
+            <input type="checkbox" checked={simWeb1c} onChange={(e) => setSimWeb1c(e.target.checked)} className="scenario-checkbox" />
             <i className="ok" />
             <div>
               <strong>Перевод 1С в Web-интерфейс</strong>
@@ -312,7 +313,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
           </label>
 
           <label className={`chip ${simCrypto ? "on" : ""}`} style={{ cursor: "pointer", padding: "12px 14px", display: "flex", gap: "10px", alignItems: "center" }}>
-            <input type="checkbox" checked={simCrypto} onChange={(e) => setSimCrypto(e.target.checked)} style={{ display: "none" }} />
+            <input type="checkbox" checked={simCrypto} onChange={(e) => setSimCrypto(e.target.checked)} className="scenario-checkbox" />
             <i className="ok" />
             <div>
               <strong>Облачная ЭЦП / Web-токены</strong>
@@ -368,7 +369,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
                   cursor: "pointer"
                 }}
               >
-                📥 Выгрузить перечень для закупки (CSV)
+                ↓ Выгрузить перечень для закупки (CSV)
               </button>
             </div>
           </div>
@@ -415,7 +416,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
               <div
                 key={d.dept}
                 style={{
-                  background: "rgba(255,255,255,0.02)",
+                  background: "var(--surface)",
                   border: "1px solid var(--line)",
                   borderRadius: "8px",
                   padding: "10px 14px",
@@ -433,7 +434,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--muted)" }}>
                   <span>Всего ПК: {d.total}</span>
-                  <span style={{ color: "#f87171" }}>Главный блокер: {d.topIssue}</span>
+                  <span style={{ color: "var(--bad)" }}>Главный блокер: {d.topIssue}</span>
                 </div>
 
                 <div className="progress" style={{ height: "4px" }}>
@@ -455,7 +456,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
             className="search ws-search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Найти АРМ или подразделение..."
+            aria-label="Поиск в ML-аналитике" placeholder="Найти АРМ или подразделение..."
           />
           <div className="seg">
             {[["", "Все", simulatedList.length], ["Низкий", "Волна 1", count("Низкий")], ["Умеренный", "Волна 2", count("Умеренный")], ["Высокий", "Волна 3", count("Высокий")]].map(([v, l, n]) => (
@@ -486,6 +487,8 @@ export default function MLAnalytics({ fleet = [], onPick }) {
               {filtered.slice(0, 50).map((w, i) => (
                 <tr
                   key={w.workstation_id}
+                  tabIndex={w.raw_workstation && onPick ? 0 : undefined}
+                  onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && w.raw_workstation && onPick) { e.preventDefault(); onPick(w.raw_workstation); } }}
                   style={{ "--i": i % 15, cursor: "pointer" }}
                   onClick={() => w.raw_workstation && onPick && onPick(w.raw_workstation)}
                 >

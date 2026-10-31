@@ -1,3 +1,4 @@
+import OpticalSurface from "./design/OpticalSurface";
 import RulesAndNLPTab from "./RulesAndNLPTab";
 import WorkstationModal from "./WorkstationModal";
 import SoftwareCatalog from "./SoftwareCatalog";
@@ -22,6 +23,16 @@ const navigation = [
   { id: "ml", icon: "⌬", title: "ML-Аналитика" },
   { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
 ];
+const pageDescriptions = {
+  dashboard: "Сводная оценка парка и причины, которые определяют следующий шаг.",
+  workstations: "Единый реестр устройств. Поиск, характеристики и результат оценки — в одной строке.",
+  criteria: "Требования к оборудованию и справочник программных решений.",
+  waves: "Последовательность перехода по текущим критериям. Откройте устройство для деталей.",
+  report: "Сводка оценки и рекомендации для подготовки перехода.",
+  builder: "Подбор конфигурации по заданным критериям. Стоимость и показатели — сценарные оценки.",
+  ml: "Прогноз риска и сценарии модернизации. Прогноз не подтверждает совместимость.",
+  "nlp-rules": "Сопоставление названий ПО и управление корпоративными правилами.",
+};
 const statuses = ["Готов", "Частично", "Не готов"];
 
 function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs }) {
@@ -84,7 +95,7 @@ function ScanButton({ total, ready, onScan }) {
   };
 
   return (
-    <button className={`scan ${phase}`} onClick={run} aria-live="polite">
+    <button aria-label="Запустить анализ" className={`scan ${phase}`} onClick={run} aria-live="polite">
       <span className="scan-ring" aria-hidden="true" />
       <span className="scan-in">
         {phase === "done" ? (
@@ -306,7 +317,7 @@ function App() {
     <div className="app">
       <div className="bg-glow" aria-hidden="true" />
       {!entered && <Welcome onEnter={() => { setEntered(true); setScanKey((k) => k + 1); }} />}
-      <aside className="sidebar">
+      <aside className="sidebar ava-dark" inert={!entered}>
         <div className="brand">
           <svg viewBox="0 0 32 32" className="brand-logo"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
           <div><div className="brand-title">ALROSA IT</div><div className="brand-subtitle">Центр миграции</div></div>
@@ -314,11 +325,12 @@ function App() {
         <div className="sidebar-caption">РАБОЧАЯ СРЕДА</div>
         <nav className="navigation" aria-label="Разделы системы">
           {navigation.map((i) => (
-            <button key={i.id} aria-current={page === i.id ? "page" : undefined} className={`nav-item ${page === i.id ? "active" : ""}`} onClick={() => setPage(i.id)}>
-              <span className="nav-icon">{i.icon}</span><span>{i.title}</span>
-            </button>
+            <OpticalSurface as="button" level={page === i.id ? "premium" : "subtle"} radius={10} key={i.id} aria-current={page === i.id ? "page" : undefined} className={`nav-item ${page === i.id ? "active" : ""}`} onClick={() => setPage(i.id)}>
+              <span className="nav-icon" aria-hidden="true">{i.icon}</span><span>{i.title}</span>
+            </OpticalSurface>
           ))}
         </nav>
+        <div className="sidebar-signature"><span>AVA</span><small>ИНЖЕНЕРИЯ ПЕРЕХОДА</small></div>
         <div className="user-card">
           <div className="avatar">{currentUser.initials}</div>
           <div className="user-info">
@@ -346,13 +358,14 @@ function App() {
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main" inert={!entered}>
         <header className="topbar">
-          <div><span className="page-eyebrow">ALROSA IT / ЦЕНТР МИГРАЦИИ</span><h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1></div>
+          <div><span className="page-eyebrow">AVA / ALROSA IT / РАБОЧАЯ СРЕДА</span><h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1></div>
           <ScanButton total={rows.length} ready={ready} onScan={scan} />
         </header>
 
-        <div className="page" key={page}>
+        <p className="page-description">{pageDescriptions[page]}</p>
+        <div className={`page page-${page}`} key={page}>
           {page === "dashboard" && (
             <>
               <section className="hero">
@@ -449,8 +462,9 @@ function App() {
           {page === "waves" && (
             <section className="wave-cols">
               {waves.map(([w, list], i) => (
-                <div className="panel" key={w} style={{ "--i": i }}>
+                <div className="panel wave-panel" key={w} style={{ "--i": i }}><span className="wave-number" aria-hidden="true">0{i + 1}</span>
                   <div className="panel-header"><div><h3>{w === "—" ? "Не определено" : w}</h3><p>{list.length} рабочих мест</p></div></div>
+                  <div className="wave-rule">{["Соответствуют текущим критериям", "Требуется подготовка оборудования", "Требуется подготовка программного обеспечения", "Требуется уточнение"][i]}</div>
                   <div className="chips">
                     {list.slice(0, 36).map((r, k) => <button type="button" key={r.id} className={`mini ${r.status === "Готов" ? "ok" : r.status === "Частично" ? "warn" : "bad"}`} style={{ "--k": k }} onClick={() => setSelected(r)}>{r.id.slice(4)}</button>)}
                     {list.length > 36 && <span className="more">+{list.length - 36}</span>}

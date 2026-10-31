@@ -1,3 +1,4 @@
+import OpticalSurface from "./design/OpticalSurface";
 import { useState, useMemo, useEffect, useRef } from "react";
 
 export default function WorkstationModal({ selected, onClose }) {
@@ -189,7 +190,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
     <div className="modal-overlay" onClick={onClose}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="device-title" tabIndex={-1} className="modal" style={{ maxWidth: "780px", width: "95%" }} onClick={(e) => e.stopPropagation()}>
         {/* ХЕДЕР */}
-        <div className="modal-header">
+        <OpticalSurface level="premium" radius={16} className="modal-header">
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <h2 id="device-title" style={{ margin: 0 }}>{selected.id}</h2>
@@ -202,7 +203,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
             </p>
           </div>
           <button className="close-button" aria-label="Закрыть" onClick={onClose}>×</button>
-        </div>
+        </OpticalSurface>
 
         <p className="assessment-note">Сценарные проценты и стоимость являются оценками. Они не подтверждают совместимость устройства.</p>
         {/* НАВИГАЦИЯ ВКЛАДОК */}
@@ -266,7 +267,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
         {/* ВКЛАДКА 2: КОНТРФАКТИЧЕСКИЙ РЕЦЕПТ & PLAYBOOK */}
         {tab === "playbook" && (
           <div>
-            <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "8px", padding: "14px 16px", marginBottom: "16px" }}>
+            <div style={{ background: "var(--success-soft)", border: "1px solid var(--line)", borderRadius: "8px", padding: "14px 16px", marginBottom: "16px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <strong style={{ color: "var(--ok)", fontSize: "15px" }}>Кратчайший путь в Волну 1 (Зеленая зона)</strong>
@@ -302,7 +303,7 @@ echo "[+] АРМ ${selected.id} успешно подготовлен. Пере�
                 {copied ? "Скопировано!" : "Скопировать скрипт"}
               </button>
             </div>
-            <pre style={{ margin: 0, padding: "12px", background: "#0b1320", borderRadius: "6px", color: "#7dd3fc", fontSize: "12px", overflowX: "auto", maxHeight: "160px" }}>
+            <pre style={{ margin: 0, padding: "12px", background: "#282923", borderRadius: "6px", color: "#e7d3ad", fontSize: "12px", overflowX: "auto", maxHeight: "160px" }}>
               {bashScript}
             </pre>
           </div>
