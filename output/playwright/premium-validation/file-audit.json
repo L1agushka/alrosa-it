@@ -1,0 +1,17 @@
+{
+  "changed": [
+    "frontend/src/MLAnalytics.jsx",
+    "frontend/src/WorkstationModal.jsx",
+    "frontend/src/main.jsx",
+    "frontend/src/Builder.jsx",
+    "frontend/src/ui.jsx",
+    "frontend/src/Mosaic.jsx",
+    "frontend/src/Office.jsx",
+    "frontend/src/SoftwareCatalog.jsx",
+    "frontend/src/landing.css",
+    "frontend/src/App.jsx",
+    "frontend/src/RulesAndNLPTab.jsx",
+    "frontend/src/Welcome.jsx"
+  ],
+  "missing": []
+}

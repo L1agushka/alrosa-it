@@ -1,0 +1,232 @@
+[
+  {
+    "file": "App.jsx",
+    "name": "mapServerWorkstations",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "upload",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "exportReport",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "scan",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "rows",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "waves",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "blockers",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "compatList",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "ready",
+    "unchanged": true
+  },
+  {
+    "file": "App.jsx",
+    "name": "run",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "ram",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "cores",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "disk",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "dept",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "os",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "softwareList",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "rawBlockers",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "blockers",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "shapData",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "counterfactual",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "bashScript",
+    "unchanged": true
+  },
+  {
+    "file": "WorkstationModal.jsx",
+    "name": "copyPlaybook",
+    "unchanged": true
+  },
+  {
+    "file": "Builder.jsx",
+    "name": "parts",
+    "unchanged": true
+  },
+  {
+    "file": "Builder.jsx",
+    "name": "s",
+    "unchanged": true
+  },
+  {
+    "file": "Builder.jsx",
+    "name": "checks",
+    "unchanged": true
+  },
+  {
+    "file": "Builder.jsx",
+    "name": "cheapest",
+    "unchanged": true
+  },
+  {
+    "file": "Builder.jsx",
+    "name": "auto",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "FACTOR_RECOMMENDATIONS",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "simulatedList",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "simSummary",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "departmentRisks",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "filtered",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "downloadProcurementCSV",
+    "unchanged": true
+  },
+  {
+    "file": "MLAnalytics.jsx",
+    "name": "downloadRoadmapCSV",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "ENTERPRISE_CATEGORIES",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "statusOptions",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "loadRules",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "runNlpMatch",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "handleCategoryChange",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "handleSaveToPolicies",
+    "unchanged": true
+  },
+  {
+    "file": "RulesAndNLPTab.jsx",
+    "name": "handleDeleteRule",
+    "unchanged": true
+  },
+  {
+    "file": "Workstations.jsx",
+    "name": "depts",
+    "unchanged": true
+  },
+  {
+    "file": "Workstations.jsx",
+    "name": "list",
+    "unchanged": true
+  },
+  {
+    "file": "Workstations.jsx",
+    "name": "reset",
+    "unchanged": true
+  },
+  {
+    "file": "Workstations.jsx",
+    "name": "count",
+    "unchanged": true
+  },
+  {
+    "file": "Workstations.jsx",
+    "name": "set",
+    "unchanged": true
+  }
+]

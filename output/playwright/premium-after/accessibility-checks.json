@@ -1,0 +1,16 @@
+{
+  "zoomMethod": "200% reflow equivalent: 720 CSS px for a 1440 px viewport. Native browser zoom not exercised.",
+  "refractiveSurfaces": 5,
+  "landingZoomOverflow": false,
+  "zoom-overflow-0": false,
+  "zoom-overflow-1": false,
+  "zoom-overflow-2": false,
+  "zoom-overflow-3": false,
+  "zoom-overflow-4": false,
+  "zoom-overflow-5": false,
+  "zoom-overflow-6": false,
+  "zoom-overflow-7": false,
+  "forcedColorsBackdrop": "none",
+  "fallbackRefractiveSurfaces": 0,
+  "fallbackBackdrop": "blur(10px)"
+}

@@ -1,0 +1,18 @@
+{
+  "overview": true,
+  "initialRows": true,
+  "modalRisk": true,
+  "modalHardware": true,
+  "playbook": true,
+  "departmentRows": true,
+  "sortedRows": true,
+  "statusCount": true,
+  "template": true,
+  "criteria": true,
+  "changedOverview": true,
+  "export": true,
+  "builder": true,
+  "autoBuilder": true,
+  "mlSimulation": true,
+  "mutations": true
+}

@@ -1,0 +1,14 @@
+{
+  "performance": {
+    "frames": 90,
+    "medianFrameMs": 33.29999999999973,
+    "p95FrameMs": 33.40000000000009,
+    "framesOver34ms": 3
+  },
+  "zoomOverflow": false,
+  "smallOverflow": false,
+  "focusTrapped": true,
+  "restored": true,
+  "menuClosed": "false",
+  "apiRequests": []
+}

@@ -1,0 +1,14 @@
+{
+  "landingFrames": {
+    "median": 16.699999999999818,
+    "p95": 16.800000000000182
+  },
+  "landingOverflow390": false,
+  "menuClosed390": "false",
+  "landingOverflow320": false,
+  "menuClosed320": "false",
+  "workspaceFrames": {
+    "median": 16.699999999999818,
+    "p95": 16.700000000000728
+  }
+}
