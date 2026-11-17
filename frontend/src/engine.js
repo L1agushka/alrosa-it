@@ -1,4 +1,4 @@
-export const defaultCriteria = { minRam: 8, minCores: 4, maxGap: 20 };
+export const defaultCriteria = { minRam: 4, minCores: 2, maxGap: 20 };
 
 export const analogs = [
   ["Microsoft Office", "Р7-Офис, МойОфис", "Есть"],
@@ -13,8 +13,9 @@ export function evaluate(ws, c) {
   const blockers = [];
   const ramVal = Number(ws.ram) || 0;
   const coresVal = Number(ws.cores) || 0;
+  const diskVal = Number(ws.disk) || 0;
 
-  // Проверка аппаратных требований
+  // Проверка ОЗУ
   if (ramVal < c.minRam) {
     blockers.push({
       type: "ОЗУ",
@@ -23,6 +24,7 @@ export function evaluate(ws, c) {
     });
   }
 
+  // Проверка CPU
   if (coresVal < c.minCores) {
     blockers.push({
       type: "Процессор",
@@ -31,7 +33,16 @@ export function evaluate(ws, c) {
     });
   }
 
-  // Проверка программных блокеров
+  // Проверка диска
+  if (diskVal < 30) {
+    blockers.push({
+      type: "Диск",
+      text: `Диск ${diskVal} ГБ (требуется от 30 ГБ)`,
+      fix: "Установить SSD большего объёма"
+    });
+  }
+
+  // Программные блокеры
   const blockingList = ws.blockingSoftware || [];
   blockingList.forEach((sw) => {
     blockers.push({
@@ -42,7 +53,9 @@ export function evaluate(ws, c) {
   });
 
   const totalPrograms = ws.programs || (blockingList.length ? blockingList.length + 2 : 1);
-  const missingPrograms = blockingList.length > 0 ? blockingList.length : Math.max(0, totalPrograms - (ws.compatible || 0));
+  const missingPrograms = blockingList.length > 0
+      ? blockingList.length
+      : Math.max(0, totalPrograms - (ws.compatible || 0));
   const gap = totalPrograms > 0 ? Math.round((missingPrograms / totalPrograms) * 100) : 0;
 
   if (gap > c.maxGap && blockingList.length === 0) {
@@ -54,12 +67,9 @@ export function evaluate(ws, c) {
   }
 
   const hasSoftwareBlockers = blockingList.length > 0 || gap > c.maxGap;
-  const hasHardwareDeficit = ramVal < c.minRam || coresVal < c.minCores;
+  const hasHardwareDeficit = ramVal < c.minRam || coresVal < c.minCores || diskVal < 30;
 
-  // Бизнес-логика волн миграции:
-  // Волна 3: есть блокеры ПО (AutoCAD, SAP и т.д.)
-  // Волна 2: софт готов, но не хватает ОЗУ / ядер CPU (апгрейд железа)
-  // Волна 1: железо и софт полностью соответствуют критериям
+  // Логика волн
   let status = "Готов";
   let wave = "Волна 1";
 
@@ -74,13 +84,7 @@ export function evaluate(ws, c) {
     wave = "Волна 1";
   }
 
-  return {
-    ...ws,
-    blockers,
-    gap,
-    status,
-    wave
-  };
+  return { ...ws, blockers, gap, status, wave };
 }
 
 export const template = "workstation_id,department,user_fullname,current_os,cpu_cores,ram_gb,disk_gb,installed_software\nWS-001,Бухгалтерия,Иванова А.С.,Windows 10 Pro,4,8,120,Microsoft Office 2016/2019; 1С:Предприятие (клиент); Google Chrome\n";

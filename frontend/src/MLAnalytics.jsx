@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Count, Panel } from "./ui";
+import {apiFetch} from "./api.js";
 
 const toneMap = {
   "Низкий": "ready",
@@ -30,7 +31,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
   const [simCrypto, setSimCrypto] = useState(false);
 
   useEffect(() => {
-    fetch("/api/v1/stats/ml-risk")
+    apiFetch("/api/v1/stats/ml-risk")
       .then((r) => (r.ok ? r.json() : null))
       .then((res) => {
         if (res && res.available) {

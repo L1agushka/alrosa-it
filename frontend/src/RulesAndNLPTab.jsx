@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Panel } from "./ui";
+import {apiFetch} from "./api.js";
 
 export const ENTERPRISE_CATEGORIES = {
   "ai_llm": {
@@ -89,7 +90,7 @@ export default function RulesAndNLPTab() {
   const [rules, setRules] = useState([]);
 
   const loadRules = () => {
-    fetch("/api/v1/policy/custom-rules")
+    apiFetch("/api/v1/policy/custom-rules")
       .then((r) => (r.ok ? r.json() : []))
       .then(setRules)
       .catch((e) => console.error("Rules load error:", e));
@@ -107,7 +108,7 @@ export default function RulesAndNLPTab() {
     setForceOverride(false);
     setShowWarningModal(false);
 
-    fetch("/api/v1/policy/nlp-match", {
+    apiFetch("/api/v1/policy/nlp-match", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, candidate_desc: candidateDesc })
@@ -143,7 +144,7 @@ export default function RulesAndNLPTab() {
     const catLabel = ENTERPRISE_CATEGORIES[chosenCategory]?.label || "Специализированное ПО";
     const catPolicy = ENTERPRISE_CATEGORIES[chosenCategory]?.defaultPolicy || "Ручное правило администратора";
 
-    fetch("/api/v1/policy/custom-rules", {
+    apiFetch("/api/v1/policy/custom-rules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -166,7 +167,7 @@ export default function RulesAndNLPTab() {
   };
 
   const handleDeleteRule = (id) => {
-    fetch(`/api/v1/policy/custom-rules/${id}`, { method: "DELETE" })
+    apiFetch(`/api/v1/policy/custom-rules/${id}`, { method: "DELETE" })
       .then(() => loadRules());
   };
 

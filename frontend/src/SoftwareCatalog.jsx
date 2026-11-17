@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import {apiFetch} from "./api.js";
 
 export default function SoftwareCatalog() {
   const [items, setItems] = useState([]);
@@ -9,7 +10,7 @@ export default function SoftwareCatalog() {
 
   const loadData = () => {
     setRefreshing(true);
-    fetch(`/api/v1/catalog/compatibility?t=${Date.now()}`, {
+    apiFetch(`/api/v1/catalog/compatibility?t=${Date.now()}`, {
       cache: "no-store",
       headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
     })
@@ -37,7 +38,7 @@ export default function SoftwareCatalog() {
 
   const handleDeleteCustom = (ruleId) => {
     if (!ruleId) return;
-    fetch(`/api/v1/policy/custom-rules/${ruleId}`, { method: "DELETE" })
+    apiFetch(`/api/v1/policy/custom-rules/${ruleId}`, { method: "DELETE" })
       .then(() => loadData())
       .catch((e) => console.error("Error deleting rule:", e));
   };
