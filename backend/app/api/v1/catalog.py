@@ -121,6 +121,7 @@ def list_compatibility_rules(
                 analog_name=crule.get("alternative"),
                 is_blocker=is_blk,
                 comment=f"CUSTOM_RULE:{crule.get('id', '')}|" + (crule.get("note") or crule.get("category") or ""),
+                custom_id=crule.get("id"),
             )
         )
 

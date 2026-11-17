@@ -1,6 +1,7 @@
 import RulesAndNLPTab from "./RulesAndNLPTab";
 import WorkstationModal from "./WorkstationModal";
 import SoftwareCatalog from "./SoftwareCatalog";
+import AdminPanel from "./AdminPanel"; // 🆕 Импорт панели администратора
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { Count, Panel } from "./ui";
@@ -14,14 +15,15 @@ import { analogs, defaultCriteria, download, evaluate } from "./engine";
 import { apiFetch } from "./api.js";
 
 const navigation = [
-  { id: "dashboard", icon: "◇", title: "Обзор" },
-  { id: "workstations", icon: "▦", title: "Рабочие места" },
-  { id: "criteria", icon: "☰", title: "Критерии" },
-  { id: "waves", icon: "≋", title: "Волны перехода" },
-  { id: "report", icon: "▤", title: "Отчёт" },
-  { id: "builder", icon: "⬡", title: "Конфигуратор ПК" },
-  { id: "ml", icon: "⌬", title: "ML-Аналитика" },
-  { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
+    { id: "dashboard", icon: "◇", title: "Обзор" },
+    { id: "workstations", icon: "▦", title: "Рабочие места" },
+    { id: "criteria", icon: "☰", title: "Критерии" },
+    { id: "waves", icon: "≋", title: "Волны перехода" },
+    { id: "report", icon: "▤", title: "Отчёт" },
+    { id: "builder", icon: "⬡", title: "Конфигуратор ПК" },
+    { id: "ml", icon: "⌬", title: "ML-Аналитика" },
+    { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
+    { id: "admin", icon: "⚙️", title: "Управление" }, // 🆕
 ];
 
 const statuses = ["Готов", "Частично", "Не готов"];
@@ -30,789 +32,804 @@ const statuses = ["Готов", "Частично", "Не готов"];
    Критерии: пороги (из ОС) + веса (из CriteriaWeight)
    ───────────────────────────────────────────── */
 function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit, onSave }) {
-  const thresholdRow = (key, label, min, max, step) => (
-      <label className="slider" key={key}>
-        <span>{label}<strong>{c[key]}</strong></span>
-        <input
-            type="range"
-            min={min} max={max} step={step}
-            value={c[key]}
-            disabled={!canEdit}
-            onChange={(e) => set({ ...c, [key]: +e.target.value })}
-        />
-      </label>
-  );
-
-  const weightRow = (code, label) => {
-    const value = c.weights?.[code] ?? 0;
-    return (
-        <label className="slider" key={code}>
-          <span>{label}<strong>{value}</strong></span>
-          <input
-              type="range"
-              min={0} max={100} step={5}
-              value={value}
-              disabled={!canEdit}
-              onChange={(e) =>
-                  set({ ...c, weights: { ...c.weights, [code]: +e.target.value } })
-              }
-          />
+    const thresholdRow = (key, label, min, max, step) => (
+        <label className="slider" key={key}>
+            <span>{label}<strong>{c[key]}</strong></span>
+            <input
+                type="range"
+                min={min} max={max} step={step}
+                value={c[key]}
+                disabled={!canEdit}
+                onChange={(e) => set({ ...c, [key]: +e.target.value })}
+            />
         </label>
     );
-  };
 
-  return (
-      <div className="sliders">
-        {osProfiles.length > 0 && (
-            <label className="slider">
-              <span>Целевая ОС<strong>{targetOs}</strong></span>
-              <select
-                  className="search"
-                  style={{
-                    width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8,
-                    background: "var(--panel-2)", color: "var(--text)",
-                    border: "1px solid var(--line)",
-                  }}
-                  value={targetOs}
-                  onChange={(e) => {
-                    const p = osProfiles.find((x) => x.name === e.target.value);
-                    if (!p) return;
-                    setTargetOs(p.name);
-                    set({
-                      ...c,
-                      minRam: p.min_ram_gb,
-                      minCores: p.min_cpu_cores,
-                      minDisk: p.min_disk_gb,
-                    });
-                  }}
-              >
-                {osProfiles.map((p) => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
-                ))}
-              </select>
+    const weightRow = (code, label) => {
+        const value = c.weights?.[code] ?? 0;
+        return (
+            <label className="slider" key={code}>
+                <span>{label}<strong>{value}</strong></span>
+                <input
+                    type="range"
+                    min={0} max={100} step={5}
+                    value={value}
+                    disabled={!canEdit}
+                    onChange={(e) =>
+                        set({ ...c, weights: { ...c.weights, [code]: +e.target.value } })
+                    }
+                />
             </label>
-        )}
+        );
+    };
 
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-          Пороги оборудования (из выбранной ОС)
+    return (
+        <div className="sliders">
+            {osProfiles.length > 0 && (
+                <label className="slider">
+                    <span>Целевая ОС<strong>{targetOs}</strong></span>
+                    <select
+                        className="search"
+                        style={{
+                            width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8,
+                            background: "var(--panel-2)", color: "var(--text)",
+                            border: "1px solid var(--line)",
+                        }}
+                        value={targetOs}
+                        onChange={(e) => {
+                            const p = osProfiles.find((x) => x.name === e.target.value);
+                            if (!p) return;
+                            setTargetOs(p.name);
+                            set({
+                                ...c,
+                                minRam: p.min_ram_gb,
+                                minCores: p.min_cpu_cores,
+                                minDisk: p.min_disk_gb,
+                            });
+                        }}
+                    >
+                        {osProfiles.map((p) => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                    </select>
+                </label>
+            )}
+
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+                Пороги оборудования (из выбранной ОС)
+            </div>
+            {thresholdRow("minRam",   "Мин. ОЗУ (ГБ)",       2, 32, 2)}
+            {thresholdRow("minCores", "Мин. ядер CPU",       2, 16, 2)}
+            {thresholdRow("minDisk",  "Мин. диск (ГБ)",     10, 500, 10)}
+            {thresholdRow("maxGap",   "Макс. % ПО без аналога", 0, 100, 5)}
+
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+                Веса критериев (0–100)
+            </div>
+            {weightRow("ram",              "Вес: мало ОЗУ")}
+            {weightRow("cpu",              "Вес: слабый CPU")}
+            {weightRow("disk",             "Вес: мало диска")}
+            {weightRow("blocker_software", "Вес: блокер ПО")}
+            {weightRow("unknown_software", "Вес: ПО без аналога")}
+
+            {onSave && (
+                <button
+                    className="ghost-btn"
+                    style={{ marginTop: 8 }}
+                    onClick={onSave}
+                    disabled={!canEdit}
+                >
+                    Сохранить веса на сервер
+                </button>
+            )}
         </div>
-        {thresholdRow("minRam",   "Мин. ОЗУ (ГБ)",       2, 32, 2)}
-        {thresholdRow("minCores", "Мин. ядер CPU",       2, 16, 2)}
-        {thresholdRow("minDisk",  "Мин. диск (ГБ)",     10, 500, 10)}
-        {thresholdRow("maxGap",   "Макс. % ПО без аналога", 0, 100, 5)}
-
-        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-          Веса критериев (0–100)
-        </div>
-        {weightRow("ram",              "Вес: мало ОЗУ")}
-        {weightRow("cpu",              "Вес: слабый CPU")}
-        {weightRow("disk",             "Вес: мало диска")}
-        {weightRow("blocker_software", "Вес: блокер ПО")}
-        {weightRow("unknown_software", "Вес: ПО без аналога")}
-
-        {onSave && (
-            <button
-                className="ghost-btn"
-                style={{ marginTop: 8 }}
-                onClick={onSave}
-                disabled={!canEdit}
-            >
-              Сохранить веса на сервер
-            </button>
-        )}
-      </div>
-  );
+    );
 }
 
 /* ─────────────────────────────────────────────
    Кнопка запуска анализа
    ───────────────────────────────────────────── */
 function ScanButton({ total, ready, onScan }) {
-  const [phase, setPhase] = useState("idle");
-  const [n, setN] = useState(0);
-  const raf = useRef(0);
-  const timer = useRef(0);
-  useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(timer.current); }, []);
+    const [phase, setPhase] = useState("idle");
+    const [n, setN] = useState(0);
+    const raf = useRef(0);
+    const timer = useRef(0);
+    useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(timer.current); }, []);
 
-  const run = () => {
-    if (phase === "run") return;
-    cancelAnimationFrame(raf.current); clearTimeout(timer.current);
-    onScan(); setPhase("run"); setN(0);
-    const t0 = performance.now();
-    const tick = (now) => {
-      const p = Math.min((now - t0) / 1500, 1);
-      setN(Math.round(total * (1 - (1 - p) * (1 - p))));
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-      else {
-        setPhase("done");
-        timer.current = setTimeout(() => setPhase("idle"), 2600);
-      }
+    const run = () => {
+        if (phase === "run") return;
+        cancelAnimationFrame(raf.current); clearTimeout(timer.current);
+        onScan(); setPhase("run"); setN(0);
+        const t0 = performance.now();
+        const tick = (now) => {
+            const p = Math.min((now - t0) / 1500, 1);
+            setN(Math.round(total * (1 - (1 - p) * (1 - p))));
+            if (p < 1) raf.current = requestAnimationFrame(tick);
+            else {
+                setPhase("done");
+                timer.current = setTimeout(() => setPhase("idle"), 2600);
+            }
+        };
+        raf.current = requestAnimationFrame(tick);
     };
-    raf.current = requestAnimationFrame(tick);
-  };
 
-  return (
-      <button className={`scan ${phase}`} onClick={run} aria-live="polite">
-        <span className="scan-ring" aria-hidden="true" />
-        <span className="scan-in">
+    return (
+        <button className={`scan ${phase}`} onClick={run} aria-live="polite">
+            <span className="scan-ring" aria-hidden="true" />
+            <span className="scan-in">
         {phase === "done" ? (
             <svg viewBox="0 0 24 24" className="scan-ico tick">
-              <path d="M5 12.5l4.5 4.5L19 7.5" />
+                <path d="M5 12.5l4.5 4.5L19 7.5" />
             </svg>
         ) : (
             <svg viewBox="0 0 32 32" className="scan-ico">
-              <path d="M16 2 28 12 16 30 4 12Z" />
-              <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
+                <path d="M16 2 28 12 16 30 4 12Z" />
+                <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
             </svg>
         )}
-          <span className="scan-text">
+                <span className="scan-text">
           {phase === "idle" && "Запустить анализ"}
-            {phase === "run" && <>Проверяем <b>{n}</b> из {total}</>}
-            {phase === "done" && <>Готово: <b>{ready}</b> из {total} готовы</>}
+                    {phase === "run" && <>Проверяем <b>{n}</b> из {total}</>}
+                    {phase === "done" && <>Готово: <b>{ready}</b> из {total} готовы</>}
         </span>
         <span
             className="scan-bar"
             style={{ transform: `scaleX(${phase === "run" ? n / total : 0})` }}
         />
       </span>
-      </button>
-  );
+        </button>
+    );
 }
 
 /* ─────────────────────────────────────────────
    Маппинг серверных данных.
-   ⚠️ status/wave НЕ ставим — их считает evaluate(w, c)
    ───────────────────────────────────────────── */
 const mapServerWorkstations = (workstations) => {
-  return (workstations || []).map((ws) => {
-    const assess = ws.assessment || {};
-    const hwIssues = assess.hardware_issues || ws.hardware_issues || [];
+    return (workstations || []).map((ws) => {
+        const assess = ws.assessment || {};
+        const hwIssues = assess.hardware_issues || ws.hardware_issues || [];
 
-    const swBlockersRaw = assess.blockers || ws.blocking_software || [];
-    const swBlockers = swBlockersRaw.map((s) =>
-        typeof s === "object"
-            ? (s.software_name || s.name || s.reason || "Несовместимое ПО")
-            : s
-    );
+        const swBlockersRaw = assess.blockers || ws.blocking_software || [];
+        const swBlockers = swBlockersRaw.map((s) =>
+            typeof s === "object"
+                ? (s.software_name || s.name || s.reason || "Несовместимое ПО")
+                : s
+        );
 
-    const installed = Array.isArray(ws.installed_software)
-        ? ws.installed_software
-        : [];
+        const installed = Array.isArray(ws.installed_software)
+            ? ws.installed_software
+            : [];
 
-    return {
-      fromBackend: true,
-      id: ws.workstation_ext_id || ws.workstation_id || `WS-${ws.id}`,
-      user: ws.user_fullname || "—",
-      department:
-          typeof ws.department === "object"
-              ? (ws.department?.name || "—")
-              : (ws.department || "—"),
-      os: ws.current_os || "Windows",
-      ram: Number(ws.ram_gb) || 8,
-      cores: Number(ws.cpu_cores) || 4,
-      disk: Number(ws.disk_gb) || 256,
-      programs: installed.length || 4,
-      compatible: Math.max(0, (installed.length || 4) - swBlockers.length),
-      blockingSoftware: swBlockers,
-      _hwIssues: hwIssues,
-      // оценка сервера — для сравнения, не для отображения
-      _serverAssessment: assess,
-    };
-  });
+        return {
+            fromBackend: true,
+            id: ws.workstation_ext_id || ws.workstation_id || `WS-${ws.id}`,
+            user: ws.user_fullname || "—",
+            department:
+                typeof ws.department === "object"
+                    ? (ws.department?.name || "—")
+                    : (ws.department || "—"),
+            os: ws.current_os || "Windows",
+            ram: Number(ws.ram_gb) || 8,
+            cores: Number(ws.cpu_cores) || 4,
+            disk: Number(ws.disk_gb) || 256,
+            programs: installed.length || 4,
+            compatible: Math.max(0, (installed.length || 4) - swBlockers.length),
+            blockingSoftware: swBlockers,
+            installed: installed, // массив имён установленного ПО
+            _hwIssues: hwIssues,
+            _serverAssessment: assess,
+        };
+    });
 };
-
-const SYSTEM_USERS = [
-  { id: "alex", name: "Алексей Старовойтов", role: "Системный администратор", initials: "АС" },
-  { id: "artur", name: "Артур Бучинский", role: "Ведущий архитектор", initials: "АБ" },
-  { id: "viktoria", name: "Виктория Чуносова", role: "Backend-разработчик", initials: "ВЧ" },
-];
 
 /* ─────────────────────────────────────────────
    Главный компонент
    ───────────────────────────────────────────── */
 function App() {
-  const [token, setToken] = useState(() => localStorage.getItem("alrosa_token"));
-  const [me, setMe] = useState(null);
+    const [token, setToken] = useState(() => localStorage.getItem("alrosa_token"));
+    const [me, setMe] = useState(null);
 
-  const [page, setPage] = useState("dashboard");
-  const [fleet, setFleet] = useState([]);
-  const [auditSessions, setAuditSessions] = useState([]);
-  const [softwareStats, setSoftwareStats] = useState([]);
-  const [blockerStats, setBlockerStats] = useState(null);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
+    const [page, setPage] = useState("dashboard");
+    const [fleet, setFleet] = useState([]);
+    const [auditSessions, setAuditSessions] = useState([]);
+    const [softwareStats, setSoftwareStats] = useState([]);
+    const [blockerStats, setBlockerStats] = useState(null);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
 
-  const [c, setC] = useState(defaultCriteria);
-  const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
-  const [osProfiles, setOsProfiles] = useState([]);
-  const [rawCompat, setRawCompat] = useState([]);
+    // Стейт для кастомных правил
+    const [customRules, setCustomRules] = useState([]);
 
-  const [scanKey, setScanKey] = useState(0);
-  const [focus, setFocus] = useState(null);
-  const [selected, setSelected] = useState(null);
-  const [error, setError] = useState("");
-  const [entered, setEntered] = useState(false);
+    const [c, setC] = useState(defaultCriteria);
+    const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
+    const [osProfiles, setOsProfiles] = useState([]);
+    const [rawCompat, setRawCompat] = useState([]);
 
-  /* ─────────── загрузка при старте ─────────── */
-  useEffect(() => {
-    if (!token) return;
+    const [scanKey, setScanKey] = useState(0);
+    const [focus, setFocus] = useState(null);
+    const [selected, setSelected] = useState(null);
+    const [error, setError] = useState("");
+    const [entered, setEntered] = useState(false);
 
-    // 1) Пользователь
-    apiFetch("/api/v1/auth/me")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((u) => setMe(u))
-        .catch(() => {});
+    /* ─────────── загрузка при старте ─────────── */
+    useEffect(() => {
+        if (!token) return;
 
-    // 2) Веса критериев — отдельно от порогов
-    apiFetch("/api/v1/criteria/weights")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data) => {
-          const w = {};
-          (data || []).forEach((x) => { w[x.code] = x.weight; });
-          setC((prev) => ({ ...prev, weights: { ...prev.weights, ...w } }));
-        })
-        .catch((err) => console.warn("weights:", err));
+        // 1) Пользователь
+        apiFetch("/api/v1/auth/me")
+            .then((r) => (r.ok ? r.json() : null))
+            .then((u) => setMe(u))
+            .catch(() => {});
 
-    // 3) ОС + последний аудит — параллельно, targetOs определяется детерминированно
-    Promise.all([
-      apiFetch("/api/v1/catalog/os").then((r) => (r.ok ? r.json() : [])),
-      apiFetch("/api/v1/audit/latest").then((r) => (r.ok ? r.json() : null)),
-    ])
-        .then(([profiles, latest]) => {
-          setOsProfiles(profiles || []);
+        // 2) Веса критериев
+        apiFetch("/api/v1/criteria/weights")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => {
+                const w = {};
+                (data || []).forEach((x) => { w[x.code] = x.weight; });
+                setC((prev) => ({ ...prev, weights: { ...prev.weights, ...w } }));
+            })
+            .catch((err) => console.warn("weights:", err));
 
-          const desired = latest?.target_os || profiles?.[0]?.name;
-          const p =
-              (profiles || []).find((x) => x.name === desired) ||
-              (profiles || [])[0];
+        // 3) Кастомные правила по ПО
+        apiFetch("/api/v1/policy/custom-rules")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((rules) => setCustomRules(rules || []))
+            .catch((err) => console.warn("custom rules:", err));
 
-          if (p) {
-            setTargetOs(p.name);
-            setC((prev) => ({
-              ...prev,
-              minRam: p.min_ram_gb ?? prev.minRam,
-              minCores: p.min_cpu_cores ?? prev.minCores,
-              minDisk: p.min_disk_gb ?? prev.minDisk,
-            }));
-          }
+        // 4) ОС + последний аудит
+        Promise.all([
+            apiFetch("/api/v1/catalog/os").then((r) => (r.ok ? r.json() : [])),
+            apiFetch("/api/v1/audit/latest").then((r) => (r.ok ? r.json() : null)),
+        ])
+            .then(([profiles, latest]) => {
+                setOsProfiles(profiles || []);
 
-          if (latest?.workstations?.length) {
-            setFleet(mapServerWorkstations(latest.workstations));
-          }
-          if (latest?.id) setCurrentSessionId(latest.id);
-        })
-        .catch((err) => console.warn("os/latest:", err));
+                const desired = latest?.target_os || profiles?.[0]?.name;
+                const p =
+                    (profiles || []).find((x) => x.name === desired) ||
+                    (profiles || [])[0];
 
-    // 4) Справочники
-    apiFetch("/api/v1/catalog/compatibility")
-        .then((r) => (r.ok ? r.json() : []))
-        .then(setRawCompat)
-        .catch((err) => console.warn("compat:", err));
+                if (p) {
+                    setTargetOs(p.name);
+                    setC((prev) => ({
+                        ...prev,
+                        minRam: p.min_ram_gb ?? prev.minRam,
+                        minCores: p.min_cpu_cores ?? prev.minCores,
+                        minDisk: p.min_disk_gb ?? prev.minDisk,
+                    }));
+                }
 
-    apiFetch("/api/v1/audit/history")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((s) => setAuditSessions(s || []))
-        .catch((err) => console.warn("history:", err));
+                if (latest?.workstations?.length) {
+                    setFleet(mapServerWorkstations(latest.workstations));
+                }
+                if (latest?.id) setCurrentSessionId(latest.id);
+            })
+            .catch((err) => console.warn("os/latest:", err));
 
-    apiFetch("/api/v1/catalog/software")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data) => {
-          const counts = {};
-          (data || []).forEach((sw) => {
-            const cat = sw.category || "Прочее";
-            counts[cat] = (counts[cat] || 0) + 1;
-          });
-          setSoftwareStats(
-              Object.entries(counts).map(([category, count]) => ({ category, count }))
-          );
-        })
-        .catch((err) => console.warn("software:", err));
-  }, [token]);
+        // 5) Справочники
+        apiFetch("/api/v1/catalog/compatibility")
+            .then((r) => (r.ok ? r.json() : []))
+            .then(setRawCompat)
+            .catch((err) => console.warn("compat:", err));
 
-  // 5) Блокеры — зависят от targetOs
-  useEffect(() => {
-    if (!token) return;
-    apiFetch("/api/v1/stats/blockers")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (!data) return;
-          const blockers = (data.top_software || []).map((item) => ({
-            name: item.key,
-            category: "ПО",
-            alternative: "Отечественный аналог",
-            comment: `Блокирует миграцию на ${item.count} АРМ`,
-          }));
-          setBlockerStats({ ...data, blockers });
-        })
-        .catch((err) => console.warn("blockers:", err));
-  }, [targetOs, token]);
+        apiFetch("/api/v1/audit/history")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((s) => setAuditSessions(s || []))
+            .catch((err) => console.warn("history:", err));
 
-  /* ─────────── справочник совместимости ─────────── */
-  const compatList = useMemo(() => {
-    if (!rawCompat.length) return analogs;
-    const current = rawCompat.filter((it) => it.target_os_name === targetOs);
-    if (!current.length) return analogs;
-    return current.map((item) => {
-      let label = "Есть";
-      if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
-      else if (item.status === "web_alternative") label = "Вручную";
-      else if (item.status === "partially_compatible") label = "Частично";
-      return [item.software_name, item.analog_name || "—", label];
-    });
-  }, [rawCompat, targetOs]);
+        apiFetch("/api/v1/catalog/software")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => {
+                const counts = {};
+                (data || []).forEach((sw) => {
+                    const cat = sw.category || "Прочее";
+                    counts[cat] = (counts[cat] || 0) + 1;
+                });
+                setSoftwareStats(
+                    Object.entries(counts).map(([category, count]) => ({ category, count }))
+                );
+            })
+            .catch((err) => console.warn("software:", err));
+    }, [token]);
 
-  /* ─────────── ГЛАВНОЕ: пересчёт на фронте ─────────── */
-  const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
+    // Блокеры — зависят от targetOs
+    useEffect(() => {
+        if (!token) return;
+        apiFetch("/api/v1/stats/blockers")
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (!data) return;
+                const blockers = (data.top_software || []).map((item) => ({
+                    name: item.key,
+                    category: "ПО",
+                    alternative: "Отечественный аналог",
+                    comment: `Блокирует миграцию на ${item.count} АРМ`,
+                }));
+                setBlockerStats({ ...data, blockers });
+            })
+            .catch((err) => console.warn("blockers:", err));
+    }, [targetOs, token]);
 
-  const n = (s) => rows.filter((r) => r.status === s).length;
-  const ready = n("Готов");
+    /* ─────────── справочник совместимости ─────────── */
+    const compatList = useMemo(() => {
+        if (!rawCompat.length) return analogs;
+        const current = rawCompat.filter((it) => it.target_os_name === targetOs);
+        if (!current.length) return analogs;
+        return current.map((item) => {
+            let label = "Есть";
+            if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
+            else if (item.status === "web_alternative") label = "Вручную";
+            else if (item.status === "partially_compatible") label = "Частично";
+            return [item.software_name, item.analog_name || "—", label];
+        });
+    }, [rawCompat, targetOs]);
 
-  const blockers = useMemo(() => {
-    const m = {};
-    rows.forEach((r) =>
-        r.blockers.forEach((b) => {
-          m[b.type] = m[b.type] || { count: 0, fix: b.fix };
-          m[b.type].count++;
-        })
+    /* ─────────── ГЛАВНОЕ: пересчёт на фронте ─────────── */
+    const rows = useMemo(
+        () => fleet.map((w) => evaluate(w, c, customRules)),
+        [fleet, c, customRules]
     );
-    return Object.entries(m).sort((a, b) => b[1].count - a[1].count);
-  }, [rows]);
 
-  const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [
-    w,
-    rows.filter((r) => r.wave === w),
-  ]);
+    const n = (s) => rows.filter((r) => r.status === s).length;
+    const ready = n("Готов");
 
-  /* ─────────── загрузка аудита ─────────── */
-  const upload = async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    try {
-      setError("");
-      const formData = new FormData();
-      formData.append("file", f);
-      formData.append("target_os", targetOs);
+    const blockers = useMemo(() => {
+        const m = {};
+        rows.forEach((r) =>
+            r.blockers.forEach((b) => {
+                m[b.type] = m[b.type] || { count: 0, fix: b.fix };
+                m[b.type].count++;
+            })
+        );
+        return Object.entries(m).sort((a, b) => b[1].count - a[1].count);
+    }, [rows]);
 
-      const res = await apiFetch("/api/v1/audit/upload", {
-        method: "POST",
-        body: formData,
-      });
+    const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [
+        w,
+        rows.filter((r) => r.wave === w),
+    ]);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Ошибка при аудите на сервере");
-      }
+    /* ─────────── загрузка аудита ─────────── */
+    const upload = async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+            setError("");
+            const formData = new FormData();
+            formData.append("file", f);
+            formData.append("target_os", targetOs);
 
-      const data = await res.json();
-      setFleet(mapServerWorkstations(data.workstations));
-      setScanKey((k) => k + 1);
+            const res = await apiFetch("/api/v1/audit/upload", {
+                method: "POST",
+                body: formData,
+            });
 
-      apiFetch("/api/v1/audit/history")
-          .then((r) => (r.ok ? r.json() : []))
-          .then((s) => {
-            if (s && s.length) {
-              setAuditSessions(s);
-              setCurrentSessionId(s[0].id);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Ошибка при аудите на сервере");
             }
-          });
-    } catch (err) {
-      setError(err.message);
-    }
-    e.target.value = "";
-  };
 
-  /* ─────────── сохранение весов на сервер ─────────── */
-  const saveCriteria = async () => {
-    if (!c.weights) return;
-    const severities = {
-      ram: "warning",
-      cpu: "warning",
-      disk: "warning",
-      blocker_software: "blocker",
-      unknown_software: "info",
+            const data = await res.json();
+            setFleet(mapServerWorkstations(data.workstations));
+            setScanKey((k) => k + 1);
+
+            apiFetch("/api/v1/audit/history")
+                .then((r) => (r.ok ? r.json() : []))
+                .then((s) => {
+                    if (s && s.length) {
+                        setAuditSessions(s);
+                        setCurrentSessionId(s[0].id);
+                    }
+                });
+        } catch (err) {
+            setError(err.message);
+        }
+        e.target.value = "";
     };
-    try {
-      await Promise.all(
-          Object.entries(c.weights).map(([code, weight]) =>
-              apiFetch(`/api/v1/criteria/weights/${code}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  weight,
-                  severity: severities[code] || "info",
-                  is_active: true,
-                }),
-              })
-          )
-      );
-    } catch (e) {
-      console.warn("saveCriteria:", e);
-    }
-  };
 
-  /* ─────────── экспорт / scan ─────────── */
-  const exportReport = () =>
-      download(
-          "otchet-migracii.csv",
-          "id;user;department;status;wave;blockers\n" +
-          rows
-              .map((r) =>
-                  [
-                    r.id, r.user, r.department, r.status, r.wave,
-                    r.blockers.map((b) => b.text).join(" | "),
-                  ].join(";")
-              )
-              .join("\n")
-      );
+    /* ─────────── сохранение весов на сервер ─────────── */
+    const saveCriteria = async () => {
+        if (!c.weights) return;
+        const severities = {
+            ram: "warning",
+            cpu: "warning",
+            disk: "warning",
+            blocker_software: "blocker",
+            unknown_software: "info",
+        };
+        try {
+            await Promise.all(
+                Object.entries(c.weights).map(([code, weight]) =>
+                    apiFetch(`/api/v1/criteria/weights/${code}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            weight,
+                            severity: severities[code] || "info",
+                            is_active: true,
+                        }),
+                    })
+                )
+            );
+        } catch (e) {
+            console.warn("saveCriteria:", e);
+        }
+    };
 
-  const scan = () => { setPage("dashboard"); setScanKey((k) => k + 1); };
+    /* ─────────── экспорт / scan ─────────── */
+    const exportReport = () =>
+        download(
+            "otchet-migracii.csv",
+            "id;user;department;status;wave;blockers\n" +
+            rows
+                .map((r) =>
+                    [
+                        r.id, r.user, r.department, r.status, r.wave,
+                        r.blockers.map((b) => b.text).join(" | "),
+                    ].join(";")
+                )
+                .join("\n")
+        );
 
-  /* ─────────── guard ─────────── */
-  if (!token) {
-    return (
-        <LoginScreen
-            onLogin={(t) => {
-              localStorage.setItem("alrosa_token", t);
-              setToken(t);
-            }}
-        />
-    );
-  }
+    const scan = () => { setPage("dashboard"); setScanKey((k) => k + 1); };
 
-  const canEdit = me?.role === "admin" || me?.role === "analyst";
-
-  return (
-      <div className="app">
-        <div className="bg-glow" aria-hidden="true" />
-        {!entered && (
-            <Welcome
-                onEnter={() => {
-                  setEntered(true);
-                  setScanKey((k) => k + 1);
+    /* ─────────── guard ─────────── */
+    if (!token) {
+        return (
+            <LoginScreen
+                onLogin={(t) => {
+                    localStorage.setItem("alrosa_token", t);
+                    setToken(t);
                 }}
             />
-        )}
+        );
+    }
 
-        <aside className="sidebar">
-          <div className="brand">
-            <svg viewBox="0 0 32 32" className="brand-logo">
-              <path d="M16 2 28 12 16 30 4 12Z" />
-              <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
-            </svg>
-            <div>
-              <div className="brand-title">ALROSA IT</div>
-              <div className="brand-subtitle">Центр миграции</div>
-            </div>
-          </div>
-          <nav className="navigation">
-            {navigation.map((i) => (
-                <button
-                    key={i.id}
-                    className={`nav-item ${page === i.id ? "active" : ""}`}
-                    onClick={() => setPage(i.id)}
-                >
-                  <span className="nav-icon">{i.icon}</span>
-                  <span>{i.title}</span>
-                </button>
-            ))}
-          </nav>
-          <div className="user-card">
-            <div className="avatar">{me?.full_name?.[0] || "?"}</div>
-            <div className="user-info">
-              <div style={{ fontWeight: 600, fontSize: 13 }}>
-                {me?.full_name || "Пользователь"}
-              </div>
-              <span>{me?.role || ""}</span>
-            </div>
-            <button
-                className="ghost-btn"
-                style={{ padding: "4px 8px", fontSize: 11 }}
-                onClick={() => {
-                  localStorage.removeItem("alrosa_token");
-                  setToken(null);
-                }}
-            >
-              Выйти
-            </button>
-          </div>
-        </aside>
+    const canEdit = me?.role === "admin" || me?.role === "analyst";
+    const isAdmin = me?.role === "admin"; // 🆕 Отдельный флаг для админа
 
-        <main className="main">
-          <header className="topbar">
-            <h1 key={page}>
-              {navigation.find((i) => i.id === page)?.title || "Панель"}
-            </h1>
-            <ScanButton total={rows.length} ready={ready} onScan={scan} />
-          </header>
-
-          <div className="page" key={page}>
-            {page === "dashboard" && (
-                <>
-                  <section className="hero">
-                    <div className="hero-text">
-                      <p>Готовность парка к переходу на отечественную ОС</p>
-                      <div className="hero-num">
-                        <Count
-                            to={(ready / (rows.length || 1)) * 100}
-                            decimals={1}
-                            suffix="%"
-                        />
-                      </div>
-                      <span className="hero-sub">
-                    {ready} из {rows.length} рабочих мест можно переводить уже сейчас
-                  </span>
-                      <div className="legend-btns">
-                        {statuses.map((s) => (
-                            <button
-                                key={s}
-                                className={`chip ${focus === s ? "on" : ""}`}
-                                onClick={() => setFocus(focus === s ? null : s)}
-                            >
-                              <i
-                                  className={
-                                    s === "Готов" ? "ok" : s === "Частично" ? "warn" : "bad"
-                                  }
-                              />
-                              {s}
-                              <strong>{n(s)}</strong>
-                            </button>
-                        ))}
-                      </div>
-                      <div className="hero-criteria">
-                        <Criteria
-                            c={c}
-                            set={setC}
-                            osProfiles={osProfiles}
-                            targetOs={targetOs}
-                            setTargetOs={setTargetOs}
-                            canEdit={canEdit}
-                            onSave={canEdit ? saveCriteria : null}
-                        />
-                      </div>
-                    </div>
-                    <Mosaic
-                        rows={rows}
-                        scanKey={scanKey}
-                        focus={focus}
-                        onPick={setSelected}
-                    />
-                  </section>
-
-                  <Panel title="Блокирующие факторы" hint="Что мешает переводу сейчас.">
-                    <div className="problems">
-                      {blockers.map(([t, v]) => (
-                          <div className="problem" key={t}>
-                            <strong className="problem-count">{v.count}</strong>
-                            <div>
-                              <strong>{t}</strong>
-                              <span>{v.fix}</span>
-                            </div>
-                          </div>
-                      ))}
-                      {!blockers.length && (
-                          <p className="empty">
-                            Блокеров нет. Все рабочие места проходят критерии.
-                          </p>
-                      )}
-                    </div>
-                  </Panel>
-
-                  <div className="content-grid" style={{ marginTop: 24 }}>
-                    <Panel
-                        title="Стек корпоративного ПО по категориям"
-                        hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce(
-                            (acc, s) => acc + s.count,
-                            0
-                        )} позиций)`}
-                    >
-                      <div className="category-bars">
-                        {softwareStats.map((item) => {
-                          const maxVal = Math.max(
-                              ...softwareStats.map((s) => s.count), 1
-                          );
-                          const pct = Math.round((item.count / maxVal) * 100);
-                          return (
-                              <div className="category-bar-item" key={item.category}>
-                                <div className="category-bar-header">
-                                  <span>{item.category}</span>
-                                  <strong>{item.count} ПО</strong>
-                                </div>
-                                <div className="category-bar-track">
-                                  <div
-                                      className="category-bar-fill"
-                                      style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                              </div>
-                          );
-                        })}
-                        {!softwareStats.length && <p className="empty">Каталог ПО пуст.</p>}
-                      </div>
-                    </Panel>
-
-                    <Panel
-                        title={`Критические блокеры: ${targetOs}`}
-                        hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
-                    >
-                      <div className="db-blockers-list">
-                        {blockerStats?.blockers?.map((b) => (
-                            <div className="db-blocker-card" key={b.name}>
-                              <div className="db-blocker-top">
-                                <strong>{b.name}</strong>
-                                <span className="db-blocker-badge">{b.category}</span>
-                              </div>
-                              <div className="db-blocker-alt">
-                                ↳ Рекомендуемый аналог: <strong>{b.alternative}</strong>
-                              </div>
-                              <div className="db-blocker-comment">{b.comment}</div>
-                            </div>
-                        ))}
-                        {(!blockerStats || !blockerStats.blockers?.length) && (
-                            <p className="empty">
-                              Для выбранной ОС критических блокеров в базе не обнаружено.
-                            </p>
-                        )}
-                      </div>
-                    </Panel>
-                  </div>
-                </>
-            )}
-
-            {page === "workstations" && (
-                <Workstations
-                    rows={rows}
-                    c={c}
-                    onPick={setSelected}
-                    onUpload={upload}
-                    error={error}
-                    canEdit={canEdit}
+    return (
+        <div className="app">
+            <div className="bg-glow" aria-hidden="true" />
+            {!entered && (
+                <Welcome
+                    onEnter={() => {
+                        setEntered(true);
+                        setScanKey((k) => k + 1);
+                    }}
                 />
             )}
 
-            {page === "criteria" && (
-                <section className="content-grid">
-                  <Panel
-                      title="Критерии оборудования"
-                      hint="Пороги берутся из выбранной ОС. Изменения сразу пересчитывают статусы."
-                  >
-                    <Criteria
-                        c={c}
-                        set={setC}
-                        osProfiles={osProfiles}
-                        targetOs={targetOs}
-                        setTargetOs={setTargetOs}
-                        canEdit={canEdit}
-                        onSave={canEdit ? saveCriteria : null}
-                    />
-                  </Panel>
-                  <Panel
-                      title="Справочник совместимости ПО"
-                      hint="Каталог решений и аналогов из базы данных"
-                  >
-                    <SoftwareCatalog />
-                  </Panel>
-                </section>
-            )}
-
-            {page === "waves" && (
-                <section className="wave-cols">
-                  {waves.map(([w, list], i) => (
-                      <div className="panel" key={w} style={{ "--i": i }}>
-                        <div className="panel-header">
-                          <div>
-                            <h3>{w === "—" ? "Не определено" : w}</h3>
-                            <p>{list.length} рабочих мест</p>
-                          </div>
+            <aside className="sidebar">
+                <div className="brand">
+                    <svg viewBox="0 0 32 32" className="brand-logo">
+                        <path d="M16 2 28 12 16 30 4 12Z" />
+                        <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
+                    </svg>
+                    <div>
+                        <div className="brand-title">ALROSA IT</div>
+                        <div className="brand-subtitle">Центр миграции</div>
+                    </div>
+                </div>
+                <nav className="navigation">
+                    {navigation.map((i) => (
+                        <button
+                            key={i.id}
+                            className={`nav-item ${page === i.id ? "active" : ""}`}
+                            onClick={() => setPage(i.id)}
+                        >
+                            <span className="nav-icon">{i.icon}</span>
+                            <span>{i.title}</span>
+                        </button>
+                    ))}
+                </nav>
+                <div className="user-card">
+                    <div className="avatar">{me?.full_name?.[0] || "?"}</div>
+                    <div className="user-info">
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>
+                            {me?.full_name || "Пользователь"}
                         </div>
-                        <div className="chips">
-                          {list.slice(0, 36).map((r, k) => (
-                              <span
-                                  key={r.id}
-                                  className={`mini ${
-                                      r.status === "Готов"
-                                          ? "ok"
-                                          : r.status === "Частично"
-                                              ? "warn"
-                                              : "bad"
-                                  }`}
-                                  style={{ "--k": k }}
-                                  onClick={() => setSelected(r)}
-                              >
+                        <span>{me?.role || ""}</span>
+                    </div>
+                    <button
+                        className="ghost-btn"
+                        style={{ padding: "4px 8px", fontSize: 11 }}
+                        onClick={() => {
+                            localStorage.removeItem("alrosa_token");
+                            setToken(null);
+                        }}
+                    >
+                        Выйти
+                    </button>
+                </div>
+            </aside>
+
+            <main className="main">
+                <header className="topbar">
+                    <h1 key={page}>
+                        {navigation.find((i) => i.id === page)?.title || "Панель"}
+                    </h1>
+                    <ScanButton total={rows.length} ready={ready} onScan={scan} />
+                </header>
+
+                <div className="page" key={page}>
+                    {page === "dashboard" && (
+                        <>
+                            <section className="hero">
+                                <div className="hero-text">
+                                    <p>Готовность парка к переходу на отечественную ОС</p>
+                                    <div className="hero-num">
+                                        <Count
+                                            to={(ready / (rows.length || 1)) * 100}
+                                            decimals={1}
+                                            suffix="%"
+                                        />
+                                    </div>
+                                    <span className="hero-sub">
+                    {ready} из {rows.length} рабочих мест можно переводить уже сейчас
+                  </span>
+                                    <div className="legend-btns">
+                                        {statuses.map((s) => (
+                                            <button
+                                                key={s}
+                                                className={`chip ${focus === s ? "on" : ""}`}
+                                                onClick={() => setFocus(focus === s ? null : s)}
+                                            >
+                                                <i
+                                                    className={
+                                                        s === "Готов" ? "ok" : s === "Частично" ? "warn" : "bad"
+                                                    }
+                                                />
+                                                {s}
+                                                <strong>{n(s)}</strong>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="hero-criteria">
+                                        <Criteria
+                                            c={c}
+                                            set={setC}
+                                            osProfiles={osProfiles}
+                                            targetOs={targetOs}
+                                            setTargetOs={setTargetOs}
+                                            canEdit={canEdit}
+                                            onSave={canEdit ? saveCriteria : null}
+                                        />
+                                    </div>
+                                </div>
+                                <Mosaic
+                                    rows={rows}
+                                    scanKey={scanKey}
+                                    focus={focus}
+                                    onPick={setSelected}
+                                />
+                            </section>
+
+                            <Panel title="Блокирующие факторы" hint="Что мешает переводу сейчас.">
+                                <div className="problems">
+                                    {blockers.map(([t, v]) => (
+                                        <div className="problem" key={t}>
+                                            <strong className="problem-count">{v.count}</strong>
+                                            <div>
+                                                <strong>{t}</strong>
+                                                <span>{v.fix}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {!blockers.length && (
+                                        <p className="empty">
+                                            Блокеров нет. Все рабочие места проходят критерии.
+                                        </p>
+                                    )}
+                                </div>
+                            </Panel>
+
+                            <div className="content-grid" style={{ marginTop: 24 }}>
+                                <Panel
+                                    title="Стек корпоративного ПО по категориям"
+                                    hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce(
+                                        (acc, s) => acc + s.count,
+                                        0
+                                    )} позиций)`}
+                                >
+                                    <div className="category-bars">
+                                        {softwareStats.map((item) => {
+                                            const maxVal = Math.max(
+                                                ...softwareStats.map((s) => s.count), 1
+                                            );
+                                            const pct = Math.round((item.count / maxVal) * 100);
+                                            return (
+                                                <div className="category-bar-item" key={item.category}>
+                                                    <div className="category-bar-header">
+                                                        <span>{item.category}</span>
+                                                        <strong>{item.count} ПО</strong>
+                                                    </div>
+                                                    <div className="category-bar-track">
+                                                        <div
+                                                            className="category-bar-fill"
+                                                            style={{ width: `${pct}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {!softwareStats.length && <p className="empty">Каталог ПО пуст.</p>}
+                                    </div>
+                                </Panel>
+
+                                <Panel
+                                    title={`Критические блокеры: ${targetOs}`}
+                                    hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
+                                >
+                                    <div className="db-blockers-list">
+                                        {blockerStats?.blockers?.map((b) => (
+                                            <div className="db-blocker-card" key={b.name}>
+                                                <div className="db-blocker-top">
+                                                    <strong>{b.name}</strong>
+                                                    <span className="db-blocker-badge">{b.category}</span>
+                                                </div>
+                                                <div className="db-blocker-alt">
+                                                    ↳ Рекомендуемый аналог: <strong>{b.alternative}</strong>
+                                                </div>
+                                                <div className="db-blocker-comment">{b.comment}</div>
+                                            </div>
+                                        ))}
+                                        {(!blockerStats || !blockerStats.blockers?.length) && (
+                                            <p className="empty">
+                                                Для выбранной ОС критических блокеров в базе не обнаружено.
+                                            </p>
+                                        )}
+                                    </div>
+                                </Panel>
+                            </div>
+                        </>
+                    )}
+
+                    {page === "workstations" && (
+                        <Workstations
+                            rows={rows}
+                            c={c}
+                            onPick={setSelected}
+                            onUpload={upload}
+                            error={error}
+                            canEdit={canEdit}
+                        />
+                    )}
+
+                    {page === "criteria" && (
+                        <section className="content-grid">
+                            <Panel
+                                title="Критерии оборудования"
+                                hint="Пороги берутся из выбранной ОС. Изменения сразу пересчитывают статусы."
+                            >
+                                <Criteria
+                                    c={c}
+                                    set={setC}
+                                    osProfiles={osProfiles}
+                                    targetOs={targetOs}
+                                    setTargetOs={setTargetOs}
+                                    canEdit={canEdit}
+                                    onSave={canEdit ? saveCriteria : null}
+                                />
+                            </Panel>
+                            <Panel
+                                title="Справочник совместимости ПО"
+                                hint="Каталог решений и аналогов из базы данных"
+                            >
+                                <SoftwareCatalog />
+                            </Panel>
+                        </section>
+                    )}
+
+                    {page === "waves" && (
+                        <section className="wave-cols">
+                            {waves.map(([w, list], i) => (
+                                <div className="panel" key={w} style={{ "--i": i }}>
+                                    <div className="panel-header">
+                                        <div>
+                                            <h3>{w === "—" ? "Не определено" : w}</h3>
+                                            <p>{list.length} рабочих мест</p>
+                                        </div>
+                                    </div>
+                                    <div className="chips">
+                                        {list.slice(0, 36).map((r, k) => (
+                                            <span
+                                                key={r.id}
+                                                className={`mini ${
+                                                    r.status === "Готов"
+                                                        ? "ok"
+                                                        : r.status === "Частично"
+                                                            ? "warn"
+                                                            : "bad"
+                                                }`}
+                                                style={{ "--k": k }}
+                                                onClick={() => setSelected(r)}
+                                            >
                         {r.id.slice(4)}
                       </span>
-                          ))}
-                          {list.length > 36 && (
-                              <span className="more">+{list.length - 36}</span>
-                          )}
-                        </div>
-                      </div>
-                  ))}
-                </section>
+                                        ))}
+                                        {list.length > 36 && (
+                                            <span className="more">+{list.length - 36}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </section>
+                    )}
+
+                    {page === "report" && (
+                        <>
+                            <Panel
+                                title="Итоги и рекомендации"
+                                hint="Отчёт строится по текущим критериям"
+                                action={
+                                    <div className="tools">
+                                        <button className="ghost-btn" onClick={exportReport}>
+                                            Скачать CSV
+                                        </button>
+                                        <button
+                                            className="ghost-btn"
+                                            onClick={() => window.print()}
+                                        >
+                                            Печать
+                                        </button>
+                                    </div>
+                                }
+                            >
+                                <div className="stats-grid">
+                                    {[
+                                        ["Всего", rows.length, ""],
+                                        ["Готовы", ready, "ok"],
+                                        ["Частично", n("Частично"), "warn"],
+                                        ["Не готовы", n("Не готов"), "bad"],
+                                    ].map(([l, v, t], i) => (
+                                        <div className={`stat-card ${t}`} key={l} style={{ "--i": i }}>
+                                            <span>{l}</span>
+                                            <strong><Count to={v} /></strong>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Panel>
+                            <Panel title="Что сделать">
+                                <ol className="recs">
+                                    <li>
+                                        <strong>Волна 1 ({waves[0][1].length} мест).</strong>{" "}
+                                        Переводить немедленно: оборудование и ПО полностью подходят.
+                                    </li>
+                                    {blockers.map(([t, v]) => (
+                                        <li key={t}>
+                                            <strong>{t}: {v.count} мест.</strong> {v.fix}.
+                                        </li>
+                                    ))}
+                                    <li>
+                                        <strong>Волна 3 ({waves[2][1].length} мест).</strong>{" "}
+                                        Сначала согласовать замену ПО с пользователями.
+                                    </li>
+                                </ol>
+                            </Panel>
+                        </>
+                    )}
+
+                    {page === "builder" && <Builder criteria={c} />}
+                    {page === "ml" && <MLAnalytics fleet={fleet} onPick={setSelected} />}
+
+                    {page === "nlp-rules" && (
+                        <RulesAndNLPTab
+                            canEdit={canEdit}
+                            onRulesChanged={(newRules) => setCustomRules(newRules)}
+                        />
+                    )}
+
+                    {/* 🆕 Вкладка управления пользователями (только для админа) */}
+                    {page === "admin" && isAdmin && <AdminPanel />}
+                </div>
+            </main>
+
+            {selected && (
+                <WorkstationModal selected={selected} onClose={() => setSelected(null)} />
             )}
-
-            {page === "report" && (
-                <>
-                  <Panel
-                      title="Итоги и рекомендации"
-                      hint="Отчёт строится по текущим критериям"
-                      action={
-                        <div className="tools">
-                          <button className="ghost-btn" onClick={exportReport}>
-                            Скачать CSV
-                          </button>
-                          <button
-                              className="ghost-btn"
-                              onClick={() => window.print()}
-                          >
-                            Печать
-                          </button>
-                        </div>
-                      }
-                  >
-                    <div className="stats-grid">
-                      {[
-                        ["Всего", rows.length, ""],
-                        ["Готовы", ready, "ok"],
-                        ["Частично", n("Частично"), "warn"],
-                        ["Не готовы", n("Не готов"), "bad"],
-                      ].map(([l, v, t], i) => (
-                          <div className={`stat-card ${t}`} key={l} style={{ "--i": i }}>
-                            <span>{l}</span>
-                            <strong><Count to={v} /></strong>
-                          </div>
-                      ))}
-                    </div>
-                  </Panel>
-                  <Panel title="Что сделать">
-                    <ol className="recs">
-                      <li>
-                        <strong>Волна 1 ({waves[0][1].length} мест).</strong>{" "}
-                        Переводить немедленно: оборудование и ПО полностью подходят.
-                      </li>
-                      {blockers.map(([t, v]) => (
-                          <li key={t}>
-                            <strong>{t}: {v.count} мест.</strong> {v.fix}.
-                          </li>
-                      ))}
-                      <li>
-                        <strong>Волна 3 ({waves[2][1].length} мест).</strong>{" "}
-                        Сначала согласовать замену ПО с пользователями.
-                      </li>
-                    </ol>
-                  </Panel>
-                </>
-            )}
-
-            {page === "builder" && <Builder criteria={c} />}
-            {page === "ml" && <MLAnalytics fleet={fleet} onPick={setSelected} />}
-            {page === "nlp-rules" && <RulesAndNLPTab />}
-          </div>
-        </main>
-
-        {selected && (
-            <WorkstationModal selected={selected} onClose={() => setSelected(null)} />
-        )}
-      </div>
-  );
+        </div>
+    );
 }
 
 export default App;
