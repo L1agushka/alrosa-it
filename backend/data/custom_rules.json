@@ -16,5 +16,38 @@
     "status": "blocker",
     "alternative": "RuDesktop / Remmina",
     "note": "Критический блокер: Неконтролируемый удаленный доступ запрещен"
+  },
+  {
+    "id": "a2029073-a79d-4f6b-97fe-b846d5393a86",
+    "pattern": "utorrent",
+    "software_name": "uTorrent",
+    "category": "Сетевой анализ, диагностика и системные утилиты",
+    "status": "blocker",
+    "alternative": "Запрещено регламентом ИБ",
+    "note": "P2P-трафик запрещён",
+    "weight": 100,
+    "severity": "blocker"
+  },
+  {
+    "id": "d3047219-5a90-4eb5-986f-4e7c684f9681",
+    "pattern": "calculator",
+    "software_name": "Calculator",
+    "category": "Сетевой анализ, диагностика и мониторинг",
+    "status": "native_ready",
+    "alternative": "Wireshark for Linux / Fly-Term / tcpdump",
+    "note": "Нативно поддерживается в Astra Linux SE.",
+    "weight": 50,
+    "severity": "warning"
+  },
+  {
+    "id": "444624e7-e13b-4420-a840-f8eb61fde105",
+    "pattern": "microsoft office",
+    "software_name": "Microsoft Office",
+    "category": "Офисные пакеты и работа с документами",
+    "status": "alternative_available",
+    "alternative": "Р7-Офис / МойОфис",
+    "note": "Штатная миграция документооборота",
+    "weight": 20,
+    "severity": "info"
   }
 ]

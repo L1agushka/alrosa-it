@@ -1,7 +1,7 @@
 """
 Схемы справочников: ОС, ПО, правила совместимости.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ..models.enums import SoftwareCategory, CompatibilityStatus
 from .common import ORMModel
@@ -40,3 +40,4 @@ class CompatibilityRuleRead(ORMModel):
     analog_name: str | None = None
     is_blocker: bool
     comment: str | None = None
+    custom_id: str | None = None   # 🆕 UUID кастомного правила

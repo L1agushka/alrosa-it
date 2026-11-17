@@ -1,4 +1,3 @@
-from app.api.v1.rules import router as rules_router
 """
 Точка входа FastAPI.
 """

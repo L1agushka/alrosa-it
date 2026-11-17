@@ -46,7 +46,7 @@ function Card({ w, c, i, onPick }) {
   );
 }
 
-export default function Workstations({ rows, c, onPick, onUpload, error }) {
+export default function Workstations({ rows, c, onPick, onUpload, error, canEdit }) {
   const [q, setQ] = useState("");
   const [st, setSt] = useState("");
   const [dept, setDept] = useState("");
@@ -81,10 +81,12 @@ export default function Workstations({ rows, c, onPick, onUpload, error }) {
         <select className="search" value={sort} onChange={(e) => setSort(e.target.value)}>
           {Object.entries(sorts).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <div className="ws-files">
-          <label className="ghost-btn">Загрузить CSV<input type="file" accept=".csv" hidden onChange={onUpload} /></label>
-          <button className="ghost-btn" onClick={() => download("shablon.csv", template)}>Шаблон</button>
-        </div>
+          {canEdit && (
+              <div className="ws-files">
+                  <label className="ghost-btn">Загрузить CSV<input type="file" accept=".csv" hidden onChange={onUpload} /></label>
+                  <button className="ghost-btn" onClick={() => download("shablon.csv", template)}>Шаблон</button>
+              </div>
+          )}
       </div>
 
       {error && <div className="error">{error}. Скачайте шаблон и сверьте названия колонок.</div>}

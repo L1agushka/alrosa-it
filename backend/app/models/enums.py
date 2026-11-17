@@ -42,3 +42,8 @@ class BlockerSeverity(str, enum.Enum):
     hardware = "hardware"
     software = "software"
     os = "os"
+
+class CriteriaSeverity(str, enum.Enum):
+    blocker = "blocker"   # срабатывание → сразу волна 3
+    warning = "warning"   # добавляет вес к score
+    info = "info"         # только для отображения

@@ -4,6 +4,7 @@ from .enums import (
     CompatibilityStatus,
     AssessmentStatus,
     BlockerSeverity,
+    CriteriaSeverity,
 )
 from .department import Department
 from .user import User
@@ -13,6 +14,7 @@ from .compatibility import CompatibilityRule
 from .audit import AuditSession
 from .workstation import Workstation, workstation_software
 from .assessment import Assessment, AssessmentBlocker
+from .criteria import CriteriaWeight
 
 __all__ = [
     "UserRole",
@@ -20,6 +22,8 @@ __all__ = [
     "CompatibilityStatus",
     "AssessmentStatus",
     "BlockerSeverity",
+    "CriteriaSeverity",
+    "CriteriaWeight",
     "Department",
     "User",
     "OperatingSystem",

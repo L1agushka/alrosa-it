@@ -1,0 +1,42 @@
+[
+  {
+    "pattern": "utorrent",
+    "software_name": "uTorrent",
+    "category": "Сетевой анализ, диагностика и системные утилиты",
+    "status": "blocker",
+    "alternative": "Запрещено регламентом ИБ",
+    "note": "P2P-трафик запрещён",
+    "weight": 100,
+    "severity": "blocker"
+  },
+  {
+    "pattern": "teamviewer",
+    "software_name": "TeamViewer",
+    "category": "Удалённый доступ и администрирование",
+    "status": "blocker",
+    "alternative": "RuDesktop / Remmina",
+    "note": "Неконтролируемый удалённый доступ",
+    "weight": 100,
+    "severity": "blocker"
+  },
+  {
+    "pattern": "photoshop",
+    "software_name": "Adobe Photoshop",
+    "category": "Графика и дизайн",
+    "status": "blocker",
+    "alternative": "GIMP / Krita",
+    "note": "Промышленного аналога нет",
+    "weight": 80,
+    "severity": "warning"
+  },
+  {
+    "pattern": "libreoffice",
+    "software_name": "LibreOffice",
+    "category": "Офисные пакеты",
+    "status": "native_ready",
+    "alternative": "LibreOffice",
+    "note": "Нативная поддержка",
+    "weight": 0,
+    "severity": "info"
+  }
+]

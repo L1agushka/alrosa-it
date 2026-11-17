@@ -1,10 +1,10 @@
 """
 Скоринг готовности АРМ к переходу на отечественное ПО.
 
-Логика волн:
-  wave 1 / ready             — железо ок, нет блокеров по софту
-  wave 2 / upgrade_required  — железо не дотягивает, но софт ок
-  wave 3 / blocked           — есть блокирующее ПО
+Логика волн (с весами):
+  wave 1 / ready             — сумма весов warning-критериев < порога, нет blocker
+  wave 2 / upgrade_required  — сумма весов >= порога, но нет blocker
+  wave 3 / blocked           — есть хотя бы один blocker-критерий
 """
 from typing import Any, Dict, List
 
@@ -18,12 +18,17 @@ from ..models import (
     AssessmentStatus,
     BlockerSeverity,
     CompatibilityRule,
+    CriteriaWeight,
     OperatingSystem,
     Software,
     Workstation,
     workstation_software,
 )
 from .parser import parse_audit_file, ParserError
+
+
+# Порог суммы весов для перехода в волну 2
+WAVE_2_SCORE_THRESHOLD = 30
 
 
 # ───────────────────────────────────────────────────────────
@@ -43,19 +48,15 @@ def _to_str(value: Any, default: str = "") -> str:
 
 
 def _split_software(raw: str) -> List[str]:
-    """
-    Разбивает строку 'A;B;C' на список ['A', 'B', 'C'].
-    Убирает пробелы и дубликаты, сохраняя порядок.
-    """
+    """Разбивает строку 'A;B;C' на список, убирает дубликаты."""
     if not raw:
         return []
     items = [s.strip() for s in raw.split(";") if s.strip()]
-    # дедупликация с сохранением порядка
     return list(dict.fromkeys(items))
 
 
 # ───────────────────────────────────────────────────────────
-# Загрузка правил совместимости и каталога ПО
+# Загрузка справочников из БД
 # ───────────────────────────────────────────────────────────
 def _load_compatibility_map(
     db: Session, target_os_id: int
@@ -71,11 +72,14 @@ def _load_compatibility_map(
 
 
 def _load_software_map(db: Session) -> Dict[str, Software]:
-    """
-    Возвращает словарь {lower(name): Software}.
-    Регистронезависимый матчинг: 'Chromium-Gost' найдёт 'Chromium-GOST'.
-    """
+    """Возвращает словарь {lower(name): Software}."""
     return {s.name.lower(): s for s in db.query(Software).all()}
+
+
+def _load_criteria_map(db: Session) -> Dict[str, CriteriaWeight]:
+    """Возвращает словарь {code: CriteriaWeight} только активных критериев."""
+    rows = db.query(CriteriaWeight).filter_by(is_active=True).all()
+    return {c.code: c for c in rows}
 
 
 # ───────────────────────────────────────────────────────────
@@ -85,6 +89,7 @@ def _score_workstation(
     row: pd.Series,
     target_os: OperatingSystem,
     compat_map: Dict[str, CompatibilityRule],
+    criteria: Dict[str, CriteriaWeight],
 ) -> Dict[str, Any]:
     ws_ext_id = _to_str(row.get("workstation_id"), "Unknown")
     department = _to_str(row.get("department"), "Общий")
@@ -96,40 +101,63 @@ def _score_workstation(
 
     software_names = _split_software(_to_str(row.get("installed_software")))
 
-    # 1. Проверка железа
     hardware_issues: List[str] = []
+    blockers: List[Dict[str, Any]] = []
+    score = 0
+
+    # ─────────── 1. Проверка железа (warning) ───────────
     if ram < target_os.min_ram_gb:
         hardware_issues.append(
             f"Недостаточно ОЗУ: {ram} ГБ (требуется {target_os.min_ram_gb} ГБ)"
         )
+        if "ram" in criteria:
+            score += criteria["ram"].weight
+
     if cpu < target_os.min_cpu_cores:
         hardware_issues.append(
             f"Слабый CPU: {cpu} ядер (требуется {target_os.min_cpu_cores})"
         )
+        if "cpu" in criteria:
+            score += criteria["cpu"].weight
+
     if disk < target_os.min_disk_gb:
         hardware_issues.append(
             f"Мало диска: {disk} ГБ (требуется {target_os.min_disk_gb} ГБ)"
         )
+        if "disk" in criteria:
+            score += criteria["disk"].weight
 
-    # 2. Проверка софта (регистронезависимо по compat_map через lower)
+    # ─────────── 2. Проверка софта ───────────
     compat_map_lower = {k.lower(): v for k, v in compat_map.items()}
-    blockers: List[Dict[str, Any]] = []
+    has_software_blocker = False
+
     for sw_name in software_names:
         rule = compat_map_lower.get(sw_name.lower())
-        if rule and rule.is_blocker:
+        if not rule:
+            # Программа неизвестна — добавляем info-вес (не влияет на волну)
+            if "unknown_software" in criteria and criteria["unknown_software"].severity == "info":
+                score += criteria["unknown_software"].weight
+            continue
+
+        if rule.is_blocker:
+            has_software_blocker = True
             blockers.append(
                 {
                     "software_name": sw_name,
                     "analog_name": rule.analog_name,
                     "comment": rule.comment,
+                    "severity": "blocker",
                 }
             )
+            if "blocker_software" in criteria:
+                score += criteria["blocker_software"].weight
 
-    # 3. Определение статуса и волны
-    if blockers:
+    # ─────────── 3. Определение статуса и волны ───────────
+    # blocker_software.severity всегда blocker → любое срабатывание = волна 3
+    if has_software_blocker:
         status = AssessmentStatus.blocked
         wave = 3
-    elif hardware_issues:
+    elif score >= WAVE_2_SCORE_THRESHOLD:
         status = AssessmentStatus.upgrade_required
         wave = 2
     else:
@@ -149,6 +177,7 @@ def _score_workstation(
         "blockers": blockers,
         "status": status,
         "wave": wave,
+        "score": float(score),
     }
 
 
@@ -176,13 +205,12 @@ def process_audit_file(
     if not target_os:
         raise ValueError(f"Целевая ОС '{target_os_name}' не найдена.")
 
-    # 3. Карта правил совместимости для этой ОС
+    # 3. Справочники
     compat_map = _load_compatibility_map(db, target_os.id)
-
-    # 4. Карта ПО по имени (lower) — для регистронезависимого матчинга
     software_map = _load_software_map(db)
+    criteria = _load_criteria_map(db)
 
-    # 5. Создаём AuditSession
+    # 4. Создаём AuditSession
     audit_session = AuditSession(
         filename=filename,
         target_os_id=target_os.id,
@@ -190,9 +218,9 @@ def process_audit_file(
         summary={},
     )
     db.add(audit_session)
-    db.flush()  # получить id
+    db.flush()
 
-    # 6. Скоринг и запись каждой строки
+    # 5. Скоринг
     summary = {
         "total": len(df),
         "ready": 0,
@@ -203,9 +231,9 @@ def process_audit_file(
     results: List[Dict[str, Any]] = []
 
     for _, row in df.iterrows():
-        scored = _score_workstation(row, target_os, compat_map)
+        scored = _score_workstation(row, target_os, compat_map, criteria)
 
-        # 6.1. Workstation
+        # 5.1. Workstation
         workstation = Workstation(
             audit_session_id=audit_session.id,
             workstation_ext_id=scored["workstation_ext_id"],
@@ -219,7 +247,7 @@ def process_audit_file(
         db.add(workstation)
         db.flush()
 
-        # 6.2. Установленный софт (M:N), без дублей по software_id
+        # 5.2. Установленный софт (M:N)
         seen_software_ids: set[int] = set()
         for sw_name in scored["installed_software"]:
             sw_obj = software_map.get(sw_name.lower())
@@ -235,26 +263,21 @@ def process_audit_file(
                 )
             )
 
-        # 6.3. Assessment
+        # 5.3. Assessment
         assessment = Assessment(
             workstation_id=workstation.id,
             target_os_id=target_os.id,
             status=scored["status"],
             wave=scored["wave"],
-            score=None,
+            score=scored["score"],
             hardware_issues=scored["hardware_issues"] or None,
         )
         db.add(assessment)
         db.flush()
 
-        # 6.4. AssessmentBlocker
+        # 5.4. AssessmentBlocker
         for blocker in scored["blockers"]:
             sw_obj = software_map.get(blocker["software_name"].lower())
-            severity = (
-                BlockerSeverity.software
-                if sw_obj
-                else BlockerSeverity.hardware
-            )
             message = blocker["software_name"]
             if blocker.get("analog_name"):
                 message += f" → {blocker['analog_name']}"
@@ -263,12 +286,12 @@ def process_audit_file(
                 AssessmentBlocker(
                     assessment_id=assessment.id,
                     software_id=sw_obj.id if sw_obj else None,
-                    severity=severity,
+                    severity=BlockerSeverity.software,
                     message=message,
                 )
             )
 
-        # 6.5. Обновляем счётчики
+        # 5.5. Счётчики
         summary[scored["status"].value] += 1
         summary["waves"][f"wave_{scored['wave']}"] += 1
 
@@ -279,6 +302,7 @@ def process_audit_file(
                 "user_fullname": scored["user_fullname"],
                 "status": scored["status"].value,
                 "wave": scored["wave"],
+                "score": scored["score"],
                 "hardware_issues": scored["hardware_issues"],
                 "blocking_software": [
                     f"{b['software_name']} → {b.get('analog_name') or 'нет аналога'}"
@@ -287,7 +311,7 @@ def process_audit_file(
             }
         )
 
-    # 7. Финализируем сессию
+    # 6. Финализируем
     audit_session.summary = summary
     db.commit()
     db.refresh(audit_session)

@@ -19,6 +19,8 @@ from .stats import (
     WaveDistribution,
     DashboardSummary,
 )
+from .auth import Token, TokenRefresh, UserRead, UserCreate, UserRoleUpdate
+from .criteria import CriteriaWeightRead, CriteriaWeightUpdate
 
 __all__ = [
     # common
@@ -41,4 +43,9 @@ __all__ = [
     "BlockersStats",
     "WaveDistribution",
     "DashboardSummary",
+    # auth
+    "Token", "TokenRefresh", "UserRead", "UserCreate", "UserRoleUpdate"
+    # criteria
+    "CriteriaWeightRead",
+    "CriteriaWeightUpdate",
 ]

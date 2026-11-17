@@ -19,7 +19,8 @@ Backend принимает CSV/Excel с парком АРМ, сопоставл�
   определение блокирующих факторов, распределение по волнам.
 - **REST API** — 11 эндпоинтов: справочники, аудиты, статистика.
 - **Swagger** — автодокументация, доступна на `/docs`.
-
+- **Аутентификация** — JWT (HS256), access + refresh, bcrypt.
+- **Ролевая модель** — viewer / analyst / admin.
 ---
 
 ## Стек
@@ -35,7 +36,7 @@ Backend принимает CSV/Excel с парком АРМ, сопоставл�
 | pandas, openpyxl | парсинг CSV/Excel |
 | Docker Compose | запуск всего стека |
 | pytest, httpx | тесты |
-
+| python-jose, passlib |	JWT и bcrypt|
 ---
 
 ## Как запустить
@@ -64,27 +65,35 @@ docker compose down                # остановить
 docker compose restart backend     # перезапустить только backend
 docker compose logs backend -f     # смотреть логи в реальном времени
 Структура backend
-text
 backend/
 ├── app/
 │   ├── api/v1/          ← HTTP-эндпоинты
 │   │   ├── audit.py
 │   │   ├── catalog.py
 │   │   ├── stats.py
+│   │   ├── auth.py      [NEW]
+│   │   ├── admin.py     [NEW]
+│   │   ├── criteria.py  [NEW]
+│   │   ├── rules.py
 │   │   └── router.py
-│   ├── core/            ← инфраструктура
-│   │   ├── config.py    (настройки)
-│   │   └── database.py  (подключение к БД)
-│   ├── models/          ← ORM-модели (SQLAlchemy)
-│   ├── schemas/         ← Pydantic-схемы (контракты API)
-│   ├── services/        ← бизнес-логика
-│   │   ├── parser.py    (чтение CSV/Excel)
-│   │   └── scoring.py   (скоринг + сохранение в БД)
-│   ├── initial_data.py  ← данные справочников
-│   ├── seed.py          ← наполнение БД
-│   └── main.py          ← точка входа
-├── alembic/             ← миграции
-│   └── versions/
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   └── security.py  [NEW] (JWT + bcrypt)
+│   ├── dependencies/    [NEW]
+│   │   └── auth.py      (get_current_user, RoleChecker)
+│   ├── models/
+│   │   └── criteria.py  [NEW]
+│   ├── schemas/
+│   │   ├── auth.py      [NEW]
+│   │   └── criteria.py  [NEW]
+│   ├── services/
+│   │   ├── parser.py
+│   │   └── scoring.py
+│   ├── initial_data.py
+│   ├── seed.py
+│   └── main.py
+├── alembic/
 ├── tests/
 ├── Dockerfile
 ├── alembic.ini
@@ -102,6 +111,23 @@ schemas — что уходит наружу.
 core — настройки и подключения.
 
 Эндпоинты
+Эндпоинты
+Аутентификация
+Метод	URL	Что
+POST	/api/v1/auth/token	Получить токен (OAuth2 password flow)
+POST	/api/v1/auth/refresh	Обновить access по refresh
+GET	/api/v1/auth/me	Информация о текущем пользователе
+[NEW] Админка (только admin)
+Метод	URL	Что
+GET	/api/v1/admin/users	Список пользователей
+POST	/api/v1/admin/users	Создать пользователя
+PATCH	/api/v1/admin/users/{id}/role	Сменить роль
+
+Критерии
+Метод	URL	Роль	Что
+GET	/api/v1/criteria/weights	viewer+	Список весов
+PUT	/api/v1/criteria/weights/{code}	analyst+	Изменить вес
+
 Справочники
 Метод	URL	Что возвращает
 GET	/api/v1/catalog/os	список целевых ОС с требованиями
@@ -124,6 +150,24 @@ GET	/api/v1/stats/waves	распределение по волнам
 Метод	URL	Что
 GET	/health	healthcheck
 Логика скоринга
+Логика скоринга
+Каждое рабочее место получает сумму весов сработавших warning-критериев (Assessment.score):
+
+Условие	Волна	Статус
+Есть blocker (например, AutoCAD)	3	blocked
+Сумма весов ≥ 30, блокеров нет	2	upgrade_required
+Сумма весов < 30, блокеров нет	1	ready
+Порог WAVE_2_SCORE_THRESHOLD = 30 — константа в scoring.py. Можно менять.
+
+При дефолтных весах:
+
+RAM=2 (вес 30) → волна 2
+
+CPU=1 (вес 25) + Диск=20 (вес 20) → волна 2 (сумма 45)
+
+CPU=1 (вес 25) только → волна 1 (25 < 30)
+
+
 Каждое рабочее место получает статус и волну миграции:
 
 Волна	Статус	Условие	Стратегия
@@ -498,3 +542,86 @@ alembic upgrade head — разворачивает схему с нуля.
 seed наполняет справочники автоматически при старте.
 
 Docker Compose поднимает всё одной командой.
+
+[NEW] Аутентификация и роли
+Первый вход
+При старте backend автоматически создаётся дефолтный админ:
+
+Email: admin@alrosa.ru
+
+Пароль: admin123
+
+⚠️ На проде сменить пароль!
+
+Как получить токен
+Открой http://localhost:8000/docs
+
+POST /api/v1/auth/token → Try it out:
+
+username: admin@alrosa.ru
+
+password: admin123
+
+Скопируй access_token из ответа.
+
+Наверху Swagger нажми Authorize → введи логин/пароль (или токен) → Authorize.
+
+Все защищённые эндпоинты теперь доступны.
+
+[NEW] Роли
+Роль	Что может
+viewer	Только чтение: справочники, аудиты, статистика, критерии
+analyst	+ загрузка CSV, изменение критериев, пользовательские правила
+admin	+ управление пользователями (создание, смена роли)
+[NEW] Создание пользователя (только admin)
+POST /api/v1/admin/users:
+
+json
+{
+  "email": "analyst@alrosa.ru",
+  "password": "analyst123",
+  "full_name": "Аналитик ИТ",
+  "role": "analyst",
+  "department_id": null
+}
+[NEW] Смена роли
+PATCH /api/v1/admin/users/{id}/role:
+
+json
+{ "role": "admin" }
+[NEW] Refresh-токен
+POST /api/v1/auth/refresh:
+
+json
+{ "refresh_token": "eyJ..." }
+Возвращает новый access_token (60 мин) и refresh_token (7 дней).
+
+[NEW] Критерии с весами
+Каждый критерий имеет вес и severity:
+
+code	display_name	weight	severity
+ram	Недостаточно ОЗУ	30	warning
+cpu	Слабый CPU	25	warning
+disk	Мало диска	20	warning
+blocker_software	Блокирующее ПО	100	blocker
+unknown_software	ПО без аналога	5	info
+Логика
+blocker — любое срабатывание → волна 3
+
+warning — добавляет вес. Если сумма ≥ WAVE_2_SCORE_THRESHOLD (30) → волна 2
+
+info — не влияет на волну, только для статистики
+
+Управление весами
+Метод	URL	Роль	Что делает
+GET	/api/v1/criteria/weights	viewer+	Список весов
+PUT	/api/v1/criteria/weights/{code}	analyst+	Изменить вес
+Body для PUT:
+
+json
+{
+  "weight": 50,
+  "severity": "warning",
+  "is_active": true
+}
+Что это даёт: аналитик меняет вес критерия через API — и при следующей загрузке CSV скоринг пересчитывается по новым правилам. Без релиза и правки кода.

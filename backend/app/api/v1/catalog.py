@@ -1,64 +1,54 @@
-from app.api.v1.rules import get_custom_rules_store
 """
 Справочники: целевые ОС, каталог ПО, матрица совместимости.
 Все эндпоинты — read-only.
 """
-from fastapi import APIRouter, Depends, Query
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from ...core.database import get_db
-from ...models import OperatingSystem, Software, CompatibilityRule
+from ...dependencies.auth import require_viewer
+from ...models import OperatingSystem, Software, CompatibilityRule, User
 from ...models.enums import SoftwareCategory
 from ...schemas import (
     OperatingSystemRead,
     SoftwareRead,
     CompatibilityRuleRead,
 )
+from .rules import get_custom_rules_store
 
 
 router = APIRouter()
 
 
-# ───────────────────────────────────────────────────────────
-# Операционные системы
-# ───────────────────────────────────────────────────────────
-@router.get(
-    "/os",
-    response_model=list[OperatingSystemRead],
-    summary="Список целевых ОС",
-)
-def list_operating_systems(db: Session = Depends(get_db)):
-    """Возвращает все целевые ОС с их аппаратными требованиями."""
+@router.get("/os", response_model=list[OperatingSystemRead], summary="Список целевых ОС")
+def list_operating_systems(
+    _: Annotated[User, Depends(require_viewer)],
+    db: Session = Depends(get_db),
+):
     return db.query(OperatingSystem).order_by(OperatingSystem.name).all()
 
 
-@router.get(
-    "/os/{os_id}",
-    response_model=OperatingSystemRead,
-    summary="Одна ОС по id",
-)
-def get_operating_system(os_id: int, db: Session = Depends(get_db)):
+@router.get("/os/{os_id}", response_model=OperatingSystemRead, summary="Одна ОС по id")
+def get_operating_system(
+    _: Annotated[User, Depends(require_viewer)],
+    os_id: int,
+    db: Session = Depends(get_db),
+):
     os_obj = db.query(OperatingSystem).filter_by(id=os_id).first()
     if not os_obj:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="ОС не найдена")
     return os_obj
 
 
-# ───────────────────────────────────────────────────────────
-# Каталог ПО
-# ───────────────────────────────────────────────────────────
-@router.get(
-    "/software",
-    response_model=list[SoftwareRead],
-    summary="Каталог ПО",
-)
+@router.get("/software", response_model=list[SoftwareRead], summary="Каталог ПО")
 def list_software(
-    category: SoftwareCategory | None = Query(None, description="Фильтр по категории"),
-    is_domestic: bool | None = Query(None, description="Только отечественное / только импортное"),
+    _: Annotated[User, Depends(require_viewer)],
+    category: SoftwareCategory | None = Query(None),
+    is_domestic: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Справочник ПО с фильтрами по категории и происхождению."""
     query = db.query(Software)
     if category is not None:
         query = query.filter(Software.category == category)
@@ -67,24 +57,13 @@ def list_software(
     return query.order_by(Software.name).all()
 
 
-# ───────────────────────────────────────────────────────────
-# Матрица совместимости
-# ───────────────────────────────────────────────────────────
-@router.get(
-    "/compatibility",
-    response_model=list[CompatibilityRuleRead],
-    summary="Матрица совместимости ПО и ОС",
-)
+@router.get("/compatibility", response_model=list[CompatibilityRuleRead], summary="Матрица совместимости ПО и ОС")
 def list_compatibility_rules(
-    target_os_id: int | None = Query(None, description="Фильтр по целевой ОС"),
-    is_blocker: bool | None = Query(None, description="Только блокеры"),
+    _: Annotated[User, Depends(require_viewer)],
+    target_os_id: int | None = Query(None),
+    is_blocker: bool | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    """
-    Правила совместимости с обогащением:
-    - software_name
-    - target_os_name
-    """
     query = (
         db.query(
             CompatibilityRule,
@@ -94,7 +73,6 @@ def list_compatibility_rules(
         .join(Software, CompatibilityRule.software_id == Software.id)
         .join(OperatingSystem, CompatibilityRule.target_os_id == OperatingSystem.id)
     )
-
     if target_os_id is not None:
         query = query.filter(CompatibilityRule.target_os_id == target_os_id)
     if is_blocker is not None:
@@ -102,7 +80,6 @@ def list_compatibility_rules(
 
     rows = query.order_by(Software.name, OperatingSystem.name).all()
 
-    # Формируем список стандартных правил из БД
     db_rules = [
         CompatibilityRuleRead(
             id=rule.id,
@@ -118,7 +95,6 @@ def list_compatibility_rules(
         for rule, sw_name, os_name in rows
     ]
 
-    # Динамически подмешиваем пользовательские политики АЛРОСА
     status_type = CompatibilityRuleRead.model_fields["status"].annotation
     members = getattr(status_type, "__members__", {})
     blk_enum = next((m for k, m in members.items() if any(w in k.lower() for w in ["incompat", "block", "bad"])), "incompatible")
@@ -145,8 +121,8 @@ def list_compatibility_rules(
                 analog_name=crule.get("alternative"),
                 is_blocker=is_blk,
                 comment=f"CUSTOM_RULE:{crule.get('id', '')}|" + (crule.get("note") or crule.get("category") or ""),
+                custom_id=crule.get("id"),
             )
         )
 
-    # Кастомные правила идут первыми, перекрывая дефолты при совпадении имён
     return custom_rules + db_rules
