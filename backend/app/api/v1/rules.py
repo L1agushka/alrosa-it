@@ -1,10 +1,17 @@
-from fastapi import APIRouter, HTTPException
+"""
+Пользовательские правила (политики ИБ) + NLP-матчинг ПО.
+"""
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, Annotated
 import json
 import os
 import uuid
+
 from app.services.nlp_matcher import nlp_matcher
+from ...dependencies.auth import require_viewer, require_analyst
+from ...models import User
+
 
 router = APIRouter()
 
@@ -34,6 +41,7 @@ DEFAULT_RULES = [
     }
 ]
 
+
 def load_rules():
     if not os.path.exists(RULES_FILE):
         with open(RULES_FILE, "w", encoding="utf-8") as f:
@@ -45,12 +53,15 @@ def load_rules():
     except Exception:
         return []
 
+
 def save_rules(rules):
     with open(RULES_FILE, "w", encoding="utf-8") as f:
         json.dump(rules, f, ensure_ascii=False, indent=2)
 
+
 def get_custom_rules_store():
     return load_rules()
+
 
 class CustomRuleCreate(BaseModel):
     pattern: str
@@ -60,16 +71,24 @@ class CustomRuleCreate(BaseModel):
     alternative: Optional[str] = "Не применимо"
     note: Optional[str] = "Зафиксировано администратором ИБ"
 
+
 class NLPMatchRequest(BaseModel):
     query: str
     candidate_desc: Optional[str] = None
 
+
 @router.get("/custom-rules")
-def get_custom_rules():
+def get_custom_rules(
+    _: Annotated[User, Depends(require_viewer)],
+):
     return load_rules()
 
+
 @router.post("/custom-rules")
-def add_custom_rule(rule: CustomRuleCreate):
+def add_custom_rule(
+    rule: CustomRuleCreate,
+    _: Annotated[User, Depends(require_analyst)],
+):
     rules = load_rules()
     new_rule = {
         "id": str(uuid.uuid4()),
@@ -84,8 +103,12 @@ def add_custom_rule(rule: CustomRuleCreate):
     save_rules(rules)
     return {"status": "ok", "rule": new_rule}
 
+
 @router.delete("/custom-rules/{rule_id}")
-def delete_custom_rule(rule_id: str):
+def delete_custom_rule(
+    rule_id: str,
+    _: Annotated[User, Depends(require_analyst)],
+):
     rules = load_rules()
     filtered = [r for r in rules if r.get("id") != rule_id]
     if len(filtered) == len(rules):
@@ -93,7 +116,11 @@ def delete_custom_rule(rule_id: str):
     save_rules(filtered)
     return {"status": "ok", "deleted_id": rule_id}
 
+
 @router.post("/nlp-match")
-def match_software(req: NLPMatchRequest):
+def match_software(
+    req: NLPMatchRequest,
+    _: Annotated[User, Depends(require_viewer)],
+):
     custom_rules = load_rules()
     return nlp_matcher.match(req.query, candidate_desc=req.candidate_desc, custom_rules=custom_rules)

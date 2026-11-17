@@ -18,6 +18,13 @@ from .models import (
 )
 from .initial_data import OPERATING_SYSTEMS, SOFTWARE, COMPATIBILITY_RULES
 
+DEFAULT_CRITERIA = [
+    {"code": "ram", "display_name": "Недостаточно ОЗУ", "weight": 30, "severity": "warning"},
+    {"code": "cpu", "display_name": "Слабый CPU", "weight": 25, "severity": "warning"},
+    {"code": "disk", "display_name": "Мало диска", "weight": 20, "severity": "warning"},
+    {"code": "blocker_software", "display_name": "Блокирующее ПО", "weight": 100, "severity": "blocker"},
+    {"code": "unknown_software", "display_name": "ПО без аналога", "weight": 5, "severity": "info"},
+]
 
 def _seed_operating_systems(db: Session) -> dict[str, OperatingSystem]:
     """Создаёт ОС, если их ещё нет. Возвращает словарь {name: obj}."""
@@ -98,10 +105,41 @@ def _seed_compatibility_rules(
                 )
             )
 
+def _seed_admin(db: Session) -> None:
+    """Создаёт дефолтного админа, если ни одного админа нет."""
+    from .core.security import hash_password
+    from .models import User, UserRole
 
+    existing = db.query(User).filter(User.role == UserRole.admin).first()
+    if existing:
+        return
+
+    admin = User(
+        email="admin@alrosa.ru",
+        hashed_password=hash_password("admin123"),
+        full_name="Администратор системы",
+        role=UserRole.admin,
+        is_active=True,
+    )
+    db.add(admin)
+    print("INFO:     Создан дефолтный админ: admin@alrosa.local / admin123")
+
+def _seed_criteria(db: Session) -> None:
+    from .models import CriteriaWeight, CriteriaSeverity
+    for data in DEFAULT_CRITERIA:
+        existing = db.query(CriteriaWeight).filter_by(code=data["code"]).first()
+        if not existing:
+            db.add(CriteriaWeight(
+                code=data["code"],
+                display_name=data["display_name"],
+                weight=data["weight"],
+                severity=CriteriaSeverity(data["severity"]),
+                is_active=True,
+            ))
 def seed_database(db: Session) -> None:
-    """Главная функция наполнения. Вызывается из lifespan и CLI."""
     os_map = _seed_operating_systems(db)
     software_map = _seed_software(db)
     _seed_compatibility_rules(db, os_map, software_map)
+    _seed_criteria(db)
+    _seed_admin(db)
     db.commit()
