@@ -3,14 +3,14 @@ import WorkstationModal from "./WorkstationModal";
 import SoftwareCatalog from "./SoftwareCatalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import { Count, Panel, StatusBadge } from "./ui";
+import { Count, Panel } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
 import Workstations from "./Workstations";
 import Welcome from "./Welcome";
 import MLAnalytics from "./MLAnalytics";
 import LoginScreen from "./LoginScreen.jsx";
-import { analogs, defaultCriteria, download, evaluate, template } from "./engine";
+import { analogs, defaultCriteria, download, evaluate } from "./engine";
 import { apiFetch } from "./api.js";
 
 const navigation = [
@@ -23,45 +23,28 @@ const navigation = [
   { id: "ml", icon: "⌬", title: "ML-Аналитика" },
   { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
 ];
+
 const statuses = ["Готов", "Частично", "Не готов"];
 
-function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit }) {
-  const [weights, setWeights] = useState(null);
+/* ─────────────────────────────────────────────
+   Критерии: пороги (из ОС) + веса (из CriteriaWeight)
+   ───────────────────────────────────────────── */
+function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit, onSave }) {
+  const thresholdRow = (key, label, min, max, step) => (
+      <label className="slider" key={key}>
+        <span>{label}<strong>{c[key]}</strong></span>
+        <input
+            type="range"
+            min={min} max={max} step={step}
+            value={c[key]}
+            disabled={!canEdit}
+            onChange={(e) => set({ ...c, [key]: +e.target.value })}
+        />
+      </label>
+  );
 
-  // Загружаем веса с бэкенда
-  useEffect(() => {
-    apiFetch("/api/v1/criteria/weights")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((data) => {
-          const map = {};
-          data.forEach((w) => { map[w.code] = w; });
-          setWeights(map);
-        })
-        .catch(() => {});
-  }, []);
-
-  const updateWeight = async (code, newWeight) => {
-    if (!weights || !weights[code]) return;
-    const w = weights[code];
-    try {
-      await apiFetch(`/api/v1/criteria/weights/${code}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weight: newWeight,
-          severity: w.severity,
-          is_active: w.is_active,
-        }),
-      });
-      setWeights({ ...weights, [code]: { ...w, weight: newWeight } });
-    } catch (e) {
-      console.warn("Failed to update weight:", e);
-    }
-  };
-
-  const row = (code, label) => {
-    const w = weights?.[code];
-    const value = w?.weight ?? 0;
+  const weightRow = (code, label) => {
+    const value = c.weights?.[code] ?? 0;
     return (
         <label className="slider" key={code}>
           <span>{label}<strong>{value}</strong></span>
@@ -69,8 +52,10 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit }) {
               type="range"
               min={0} max={100} step={5}
               value={value}
-              disabled={!canEdit || !w}
-              onChange={(e) => updateWeight(code, +e.target.value)}
+              disabled={!canEdit}
+              onChange={(e) =>
+                  set({ ...c, weights: { ...c.weights, [code]: +e.target.value } })
+              }
           />
         </label>
     );
@@ -80,12 +65,26 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit }) {
       <div className="sliders">
         {osProfiles.length > 0 && (
             <label className="slider">
-              <span>Целевая ОС (из БД)<strong>{targetOs}</strong></span>
+              <span>Целевая ОС<strong>{targetOs}</strong></span>
               <select
                   className="search"
-                  style={{ width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8, background: "var(--panel-2)", color: "var(--text)", border: "1px solid var(--line)" }}
+                  style={{
+                    width: "100%", marginTop: 6, padding: "8px 10px", borderRadius: 8,
+                    background: "var(--panel-2)", color: "var(--text)",
+                    border: "1px solid var(--line)",
+                  }}
                   value={targetOs}
-                  onChange={(e) => setTargetOs(e.target.value)}
+                  onChange={(e) => {
+                    const p = osProfiles.find((x) => x.name === e.target.value);
+                    if (!p) return;
+                    setTargetOs(p.name);
+                    set({
+                      ...c,
+                      minRam: p.min_ram_gb,
+                      minCores: p.min_cpu_cores,
+                      minDisk: p.min_disk_gb,
+                    });
+                  }}
               >
                 {osProfiles.map((p) => (
                     <option key={p.id} value={p.name}>{p.name}</option>
@@ -93,15 +92,41 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit }) {
               </select>
             </label>
         )}
-        {row("ram", "Вес: недостаточно ОЗУ")}
-        {row("cpu", "Вес: слабый CPU")}
-        {row("disk", "Вес: мало диска")}
-        {row("blocker_software", "Вес: блокирующее ПО")}
-        {row("unknown_software", "Вес: ПО без аналога")}
+
+        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+          Пороги оборудования (из выбранной ОС)
+        </div>
+        {thresholdRow("minRam",   "Мин. ОЗУ (ГБ)",       2, 32, 2)}
+        {thresholdRow("minCores", "Мин. ядер CPU",       2, 16, 2)}
+        {thresholdRow("minDisk",  "Мин. диск (ГБ)",     10, 500, 10)}
+        {thresholdRow("maxGap",   "Макс. % ПО без аналога", 0, 100, 5)}
+
+        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+          Веса критериев (0–100)
+        </div>
+        {weightRow("ram",              "Вес: мало ОЗУ")}
+        {weightRow("cpu",              "Вес: слабый CPU")}
+        {weightRow("disk",             "Вес: мало диска")}
+        {weightRow("blocker_software", "Вес: блокер ПО")}
+        {weightRow("unknown_software", "Вес: ПО без аналога")}
+
+        {onSave && (
+            <button
+                className="ghost-btn"
+                style={{ marginTop: 8 }}
+                onClick={onSave}
+                disabled={!canEdit}
+            >
+              Сохранить веса на сервер
+            </button>
+        )}
       </div>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Кнопка запуска анализа
+   ───────────────────────────────────────────── */
 function ScanButton({ total, ready, onScan }) {
   const [phase, setPhase] = useState("idle");
   const [n, setN] = useState(0);
@@ -118,7 +143,10 @@ function ScanButton({ total, ready, onScan }) {
       const p = Math.min((now - t0) / 1500, 1);
       setN(Math.round(total * (1 - (1 - p) * (1 - p))));
       if (p < 1) raf.current = requestAnimationFrame(tick);
-      else { setPhase("done"); timer.current = setTimeout(() => setPhase("idle"), 2600); }
+      else {
+        setPhase("done");
+        timer.current = setTimeout(() => setPhase("idle"), 2600);
+      }
     };
     raf.current = requestAnimationFrame(tick);
   };
@@ -128,57 +156,67 @@ function ScanButton({ total, ready, onScan }) {
         <span className="scan-ring" aria-hidden="true" />
         <span className="scan-in">
         {phase === "done" ? (
-            <svg viewBox="0 0 24 24" className="scan-ico tick"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <svg viewBox="0 0 24 24" className="scan-ico tick">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
         ) : (
-            <svg viewBox="0 0 32 32" className="scan-ico"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
+            <svg viewBox="0 0 32 32" className="scan-ico">
+              <path d="M16 2 28 12 16 30 4 12Z" />
+              <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
+            </svg>
         )}
           <span className="scan-text">
           {phase === "idle" && "Запустить анализ"}
             {phase === "run" && <>Проверяем <b>{n}</b> из {total}</>}
             {phase === "done" && <>Готово: <b>{ready}</b> из {total} готовы</>}
         </span>
-        <span className="scan-bar" style={{ transform: `scaleX(${phase === "run" ? n / total : 0})` }} />
+        <span
+            className="scan-bar"
+            style={{ transform: `scaleX(${phase === "run" ? n / total : 0})` }}
+        />
       </span>
       </button>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Маппинг серверных данных.
+   ⚠️ status/wave НЕ ставим — их считает evaluate(w, c)
+   ───────────────────────────────────────────── */
 const mapServerWorkstations = (workstations) => {
-  const statusMap = { ready: "Готов", upgrade_required: "Частично", blocked: "Не готов" };
-  const waveMap = { 1: "Волна 1", 2: "Волна 2", 3: "Волна 3" };
-
   return (workstations || []).map((ws) => {
-    const blockers = [];
     const assess = ws.assessment || {};
     const hwIssues = assess.hardware_issues || ws.hardware_issues || [];
-    hwIssues.forEach((h) => {
-      blockers.push({ type: "Оборудование", text: h, fix: "Модернизировать комплектующие" });
-    });
-    const swBlockers = assess.blockers || ws.blocking_software || [];
-    swBlockers.forEach((s) => {
-      const name = typeof s === "object" ? (s.software_name || s.name || s.reason || "Несовместимое ПО") : s;
-      blockers.push({ type: "ПО", text: name, fix: "Заменить на отечественный аналог" });
-    });
-    const realId = ws.workstation_ext_id || ws.workstation_id || `WS-${ws.id}`;
-    const installed = Array.isArray(ws.installed_software) ? ws.installed_software : [];
+
+    const swBlockersRaw = assess.blockers || ws.blocking_software || [];
+    const swBlockers = swBlockersRaw.map((s) =>
+        typeof s === "object"
+            ? (s.software_name || s.name || s.reason || "Несовместимое ПО")
+            : s
+    );
+
+    const installed = Array.isArray(ws.installed_software)
+        ? ws.installed_software
+        : [];
+
     return {
       fromBackend: true,
-      id: realId,
+      id: ws.workstation_ext_id || ws.workstation_id || `WS-${ws.id}`,
       user: ws.user_fullname || "—",
-      department: typeof ws.department === "object" ? (ws.department?.name || "—") : (ws.department || "—"),
+      department:
+          typeof ws.department === "object"
+              ? (ws.department?.name || "—")
+              : (ws.department || "—"),
       os: ws.current_os || "Windows",
       ram: Number(ws.ram_gb) || 8,
       cores: Number(ws.cpu_cores) || 4,
       disk: Number(ws.disk_gb) || 256,
       programs: installed.length || 4,
-      compatible: Math.max(0, (installed.length || 4) - blockers.length),
+      compatible: Math.max(0, (installed.length || 4) - swBlockers.length),
       blockingSoftware: swBlockers,
-      blockers,
-      // ← Теперь волна и статус из backend, а не из evaluate()
-      status: statusMap[assess.status] || "Готов",
-      wave: waveMap[assess.wave] || "Волна 1",
-      score: assess.score,
-      assessment: assess,
+      _hwIssues: hwIssues,
+      // оценка сервера — для сравнения, не для отображения
+      _serverAssessment: assess,
     };
   });
 };
@@ -189,8 +227,10 @@ const SYSTEM_USERS = [
   { id: "viktoria", name: "Виктория Чуносова", role: "Backend-разработчик", initials: "ВЧ" },
 ];
 
+/* ─────────────────────────────────────────────
+   Главный компонент
+   ───────────────────────────────────────────── */
 function App() {
-  // ✅ Хук токена ВНУТРИ компонента
   const [token, setToken] = useState(() => localStorage.getItem("alrosa_token"));
   const [me, setMe] = useState(null);
 
@@ -200,103 +240,79 @@ function App() {
   const [softwareStats, setSoftwareStats] = useState([]);
   const [blockerStats, setBlockerStats] = useState(null);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem("alrosa_user_id");
-    return SYSTEM_USERS.find((u) => u.id === saved) || SYSTEM_USERS[0];
-  });
+
   const [c, setC] = useState(defaultCriteria);
+  const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
+  const [osProfiles, setOsProfiles] = useState([]);
+  const [rawCompat, setRawCompat] = useState([]);
+
   const [scanKey, setScanKey] = useState(0);
   const [focus, setFocus] = useState(null);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
   const [entered, setEntered] = useState(false);
-  const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
-  const [osProfiles, setOsProfiles] = useState([]);
-  const [rawCompat, setRawCompat] = useState([]);
 
-  // ✅ ВСЕ хуки — до любого return
+  /* ─────────── загрузка при старте ─────────── */
   useEffect(() => {
     if (!token) return;
 
+    // 1) Пользователь
     apiFetch("/api/v1/auth/me")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((user) => setMe(user))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((u) => setMe(u))
         .catch(() => {});
 
-    apiFetch("/api/v1/catalog/os")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((profiles) => {
-          if (profiles.length > 0) {
-            setOsProfiles(profiles);
-            setTargetOs(profiles[0].name);
+    // 2) Веса критериев — отдельно от порогов
+    apiFetch("/api/v1/criteria/weights")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => {
+          const w = {};
+          (data || []).forEach((x) => { w[x.code] = x.weight; });
+          setC((prev) => ({ ...prev, weights: { ...prev.weights, ...w } }));
+        })
+        .catch((err) => console.warn("weights:", err));
+
+    // 3) ОС + последний аудит — параллельно, targetOs определяется детерминированно
+    Promise.all([
+      apiFetch("/api/v1/catalog/os").then((r) => (r.ok ? r.json() : [])),
+      apiFetch("/api/v1/audit/latest").then((r) => (r.ok ? r.json() : null)),
+    ])
+        .then(([profiles, latest]) => {
+          setOsProfiles(profiles || []);
+
+          const desired = latest?.target_os || profiles?.[0]?.name;
+          const p =
+              (profiles || []).find((x) => x.name === desired) ||
+              (profiles || [])[0];
+
+          if (p) {
+            setTargetOs(p.name);
             setC((prev) => ({
               ...prev,
-              minRam: profiles[0].min_ram_gb,
-              minCores: profiles[0].min_cpu_cores,
+              minRam: p.min_ram_gb ?? prev.minRam,
+              minCores: p.min_cpu_cores ?? prev.minCores,
+              minDisk: p.min_disk_gb ?? prev.minDisk,
             }));
           }
-        })
-        .catch((err) => console.warn("Failed to load OS profiles:", err));
 
+          if (latest?.workstations?.length) {
+            setFleet(mapServerWorkstations(latest.workstations));
+          }
+          if (latest?.id) setCurrentSessionId(latest.id);
+        })
+        .catch((err) => console.warn("os/latest:", err));
+
+    // 4) Справочники
     apiFetch("/api/v1/catalog/compatibility")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => setRawCompat(data))
-        .catch((err) => console.warn("Failed to load catalog:", err));
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setRawCompat)
+        .catch((err) => console.warn("compat:", err));
 
     apiFetch("/api/v1/audit/history")
-        .then((res) => (res.ok ? res.json() : []))
-        .then((sessions) => setAuditSessions(sessions || []))
-        .catch((err) => console.warn("Failed to load audit history:", err));
+        .then((r) => (r.ok ? r.json() : []))
+        .then((s) => setAuditSessions(s || []))
+        .catch((err) => console.warn("history:", err));
 
-    apiFetch("/api/v1/audit/latest")
-        .then((res) => (res.ok ? res.json() : null))
-        .then((latest) => {
-          if (latest && latest.workstations && latest.workstations.length > 0) {
-            setFleet(mapServerWorkstations(latest.workstations));
-            if (latest.target_os) setTargetOs(latest.target_os);
-            if (latest.id) setCurrentSessionId(latest.id);
-          }
-        })
-        .catch((err) => console.warn("Failed to load latest audit:", err));
-  }, [token]);
-
-  const compatList = useMemo(() => {
-    if (!rawCompat.length) return analogs;
-    const currentList = rawCompat.filter((item) => item.target_os_name === targetOs);
-    if (!currentList.length) return analogs;
-    return currentList.map((item) => {
-      let label = "Есть";
-      if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
-      else if (item.status === "web_alternative") label = "Вручную";
-      else if (item.status === "partially_compatible") label = "Частично";
-      return [item.software_name, item.analog_name || "—", label];
-    });
-  }, [rawCompat, targetOs]);
-
-  // ✅ Backend — источник истины. evaluate() только для fallback
-  const rows = useMemo(() => {
-    return fleet.map((w) => {
-      if (w.fromBackend && w.wave) return w;
-      return evaluate(w, c);
-    });
-  }, [fleet, c]);
-
-  const n = (s) => rows.filter((r) => r.status === s).length;
-  const ready = n("Готов");
-
-  const blockers = useMemo(() => {
-    const m = {};
-    rows.forEach((r) => r.blockers.forEach((b) => {
-      m[b.type] = m[b.type] || { count: 0, fix: b.fix };
-      m[b.type].count++;
-    }));
-    return Object.entries(m).sort((a, b) => b[1].count - a[1].count);
-  }, [rows]);
-
-  const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [w, rows.filter((r) => r.wave === w)]);
-
-  useEffect(() => {
-    if (!token) return;
     apiFetch("/api/v1/catalog/software")
         .then((r) => (r.ok ? r.json() : []))
         .then((data) => {
@@ -305,12 +321,14 @@ function App() {
             const cat = sw.category || "Прочее";
             counts[cat] = (counts[cat] || 0) + 1;
           });
-          const stats = Object.entries(counts).map(([category, count]) => ({ category, count }));
-          setSoftwareStats(stats);
+          setSoftwareStats(
+              Object.entries(counts).map(([category, count]) => ({ category, count }))
+          );
         })
-        .catch((err) => console.warn("Failed to load software stats:", err));
+        .catch((err) => console.warn("software:", err));
   }, [token]);
 
+  // 5) Блокеры — зависят от targetOs
   useEffect(() => {
     if (!token) return;
     apiFetch("/api/v1/stats/blockers")
@@ -325,9 +343,46 @@ function App() {
           }));
           setBlockerStats({ ...data, blockers });
         })
-        .catch((err) => console.warn("Failed to load blocker stats:", err));
+        .catch((err) => console.warn("blockers:", err));
   }, [targetOs, token]);
 
+  /* ─────────── справочник совместимости ─────────── */
+  const compatList = useMemo(() => {
+    if (!rawCompat.length) return analogs;
+    const current = rawCompat.filter((it) => it.target_os_name === targetOs);
+    if (!current.length) return analogs;
+    return current.map((item) => {
+      let label = "Есть";
+      if (item.is_blocker || item.status === "blocker") label = "Нет аналога";
+      else if (item.status === "web_alternative") label = "Вручную";
+      else if (item.status === "partially_compatible") label = "Частично";
+      return [item.software_name, item.analog_name || "—", label];
+    });
+  }, [rawCompat, targetOs]);
+
+  /* ─────────── ГЛАВНОЕ: пересчёт на фронте ─────────── */
+  const rows = useMemo(() => fleet.map((w) => evaluate(w, c)), [fleet, c]);
+
+  const n = (s) => rows.filter((r) => r.status === s).length;
+  const ready = n("Готов");
+
+  const blockers = useMemo(() => {
+    const m = {};
+    rows.forEach((r) =>
+        r.blockers.forEach((b) => {
+          m[b.type] = m[b.type] || { count: 0, fix: b.fix };
+          m[b.type].count++;
+        })
+    );
+    return Object.entries(m).sort((a, b) => b[1].count - a[1].count);
+  }, [rows]);
+
+  const waves = ["Волна 1", "Волна 2", "Волна 3", "—"].map((w) => [
+    w,
+    rows.filter((r) => r.wave === w),
+  ]);
+
+  /* ─────────── загрузка аудита ─────────── */
   const upload = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -352,7 +407,7 @@ function App() {
       setScanKey((k) => k + 1);
 
       apiFetch("/api/v1/audit/history")
-          .then((r) => r.ok && r.json())
+          .then((r) => (r.ok ? r.json() : []))
           .then((s) => {
             if (s && s.length) {
               setAuditSessions(s);
@@ -365,17 +420,62 @@ function App() {
     e.target.value = "";
   };
 
+  /* ─────────── сохранение весов на сервер ─────────── */
+  const saveCriteria = async () => {
+    if (!c.weights) return;
+    const severities = {
+      ram: "warning",
+      cpu: "warning",
+      disk: "warning",
+      blocker_software: "blocker",
+      unknown_software: "info",
+    };
+    try {
+      await Promise.all(
+          Object.entries(c.weights).map(([code, weight]) =>
+              apiFetch(`/api/v1/criteria/weights/${code}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  weight,
+                  severity: severities[code] || "info",
+                  is_active: true,
+                }),
+              })
+          )
+      );
+    } catch (e) {
+      console.warn("saveCriteria:", e);
+    }
+  };
+
+  /* ─────────── экспорт / scan ─────────── */
   const exportReport = () =>
-      download("otchet-migracii.csv",
+      download(
+          "otchet-migracii.csv",
           "id;user;department;status;wave;blockers\n" +
-          rows.map((r) => [r.id, r.user, r.department, r.status, r.wave, r.blockers.map((b) => b.text).join(" | ")].join(";")).join("\n")
+          rows
+              .map((r) =>
+                  [
+                    r.id, r.user, r.department, r.status, r.wave,
+                    r.blockers.map((b) => b.text).join(" | "),
+                  ].join(";")
+              )
+              .join("\n")
       );
 
   const scan = () => { setPage("dashboard"); setScanKey((k) => k + 1); };
 
-  // ✅ Проверка токена ПОСЛЕ всех хуков
+  /* ─────────── guard ─────────── */
   if (!token) {
-    return <LoginScreen onLogin={(t) => { localStorage.setItem("alrosa_token", t); setToken(t); }} />;
+    return (
+        <LoginScreen
+            onLogin={(t) => {
+              localStorage.setItem("alrosa_token", t);
+              setToken(t);
+            }}
+        />
+    );
   }
 
   const canEdit = me?.role === "admin" || me?.role === "analyst";
@@ -383,16 +483,35 @@ function App() {
   return (
       <div className="app">
         <div className="bg-glow" aria-hidden="true" />
-        {!entered && <Welcome onEnter={() => { setEntered(true); setScanKey((k) => k + 1); }} />}
+        {!entered && (
+            <Welcome
+                onEnter={() => {
+                  setEntered(true);
+                  setScanKey((k) => k + 1);
+                }}
+            />
+        )}
+
         <aside className="sidebar">
           <div className="brand">
-            <svg viewBox="0 0 32 32" className="brand-logo"><path d="M16 2 28 12 16 30 4 12Z" /><path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" /></svg>
-            <div><div className="brand-title">ALROSA IT</div><div className="brand-subtitle">Центр миграции</div></div>
+            <svg viewBox="0 0 32 32" className="brand-logo">
+              <path d="M16 2 28 12 16 30 4 12Z" />
+              <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
+            </svg>
+            <div>
+              <div className="brand-title">ALROSA IT</div>
+              <div className="brand-subtitle">Центр миграции</div>
+            </div>
           </div>
           <nav className="navigation">
             {navigation.map((i) => (
-                <button key={i.id} className={`nav-item ${page === i.id ? "active" : ""}`} onClick={() => setPage(i.id)}>
-                  <span className="nav-icon">{i.icon}</span><span>{i.title}</span>
+                <button
+                    key={i.id}
+                    className={`nav-item ${page === i.id ? "active" : ""}`}
+                    onClick={() => setPage(i.id)}
+                >
+                  <span className="nav-icon">{i.icon}</span>
+                  <span>{i.title}</span>
                 </button>
             ))}
           </nav>
@@ -407,7 +526,10 @@ function App() {
             <button
                 className="ghost-btn"
                 style={{ padding: "4px 8px", fontSize: 11 }}
-                onClick={() => { localStorage.removeItem("alrosa_token"); setToken(null); }}
+                onClick={() => {
+                  localStorage.removeItem("alrosa_token");
+                  setToken(null);
+                }}
             >
               Выйти
             </button>
@@ -416,7 +538,9 @@ function App() {
 
         <main className="main">
           <header className="topbar">
-            <h1 key={page}>{navigation.find((i) => i.id === page)?.title || "Панель"}</h1>
+            <h1 key={page}>
+              {navigation.find((i) => i.id === page)?.title || "Панель"}
+            </h1>
             <ScanButton total={rows.length} ready={ready} onScan={scan} />
           </header>
 
@@ -426,20 +550,51 @@ function App() {
                   <section className="hero">
                     <div className="hero-text">
                       <p>Готовность парка к переходу на отечественную ОС</p>
-                      <div className="hero-num"><Count to={(ready / (rows.length || 1)) * 100} decimals={1} suffix="%" /></div>
-                      <span className="hero-sub">{ready} из {rows.length} рабочих мест можно переводить уже сейчас</span>
+                      <div className="hero-num">
+                        <Count
+                            to={(ready / (rows.length || 1)) * 100}
+                            decimals={1}
+                            suffix="%"
+                        />
+                      </div>
+                      <span className="hero-sub">
+                    {ready} из {rows.length} рабочих мест можно переводить уже сейчас
+                  </span>
                       <div className="legend-btns">
                         {statuses.map((s) => (
-                            <button key={s} className={`chip ${focus === s ? "on" : ""}`} onClick={() => setFocus(focus === s ? null : s)}>
-                              <i className={s === "Готов" ? "ok" : s === "Частично" ? "warn" : "bad"} />{s}<strong>{n(s)}</strong>
+                            <button
+                                key={s}
+                                className={`chip ${focus === s ? "on" : ""}`}
+                                onClick={() => setFocus(focus === s ? null : s)}
+                            >
+                              <i
+                                  className={
+                                    s === "Готов" ? "ok" : s === "Частично" ? "warn" : "bad"
+                                  }
+                              />
+                              {s}
+                              <strong>{n(s)}</strong>
                             </button>
                         ))}
                       </div>
                       <div className="hero-criteria">
-                        <Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} canEdit={canEdit} />
+                        <Criteria
+                            c={c}
+                            set={setC}
+                            osProfiles={osProfiles}
+                            targetOs={targetOs}
+                            setTargetOs={setTargetOs}
+                            canEdit={canEdit}
+                            onSave={canEdit ? saveCriteria : null}
+                        />
                       </div>
                     </div>
-                    <Mosaic rows={rows} scanKey={scanKey} focus={focus} onPick={setSelected} />
+                    <Mosaic
+                        rows={rows}
+                        scanKey={scanKey}
+                        focus={focus}
+                        onPick={setSelected}
+                    />
                   </section>
 
                   <Panel title="Блокирующие факторы" hint="Что мешает переводу сейчас.">
@@ -447,20 +602,33 @@ function App() {
                       {blockers.map(([t, v]) => (
                           <div className="problem" key={t}>
                             <strong className="problem-count">{v.count}</strong>
-                            <div><strong>{t}</strong><span>{v.fix}</span></div>
+                            <div>
+                              <strong>{t}</strong>
+                              <span>{v.fix}</span>
+                            </div>
                           </div>
                       ))}
-                      {!blockers.length && <p className="empty">Блокеров нет. Все рабочие места проходят критерии.</p>}
+                      {!blockers.length && (
+                          <p className="empty">
+                            Блокеров нет. Все рабочие места проходят критерии.
+                          </p>
+                      )}
                     </div>
                   </Panel>
 
                   <div className="content-grid" style={{ marginTop: 24 }}>
-                    <Panel title="Стек корпоративного ПО по категориям"
-                           hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce((acc, s) => acc + s.count, 0)} позиций)`}
+                    <Panel
+                        title="Стек корпоративного ПО по категориям"
+                        hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce(
+                            (acc, s) => acc + s.count,
+                            0
+                        )} позиций)`}
                     >
                       <div className="category-bars">
                         {softwareStats.map((item) => {
-                          const maxVal = Math.max(...softwareStats.map((s) => s.count), 1);
+                          const maxVal = Math.max(
+                              ...softwareStats.map((s) => s.count), 1
+                          );
                           const pct = Math.round((item.count / maxVal) * 100);
                           return (
                               <div className="category-bar-item" key={item.category}>
@@ -469,7 +637,10 @@ function App() {
                                   <strong>{item.count} ПО</strong>
                                 </div>
                                 <div className="category-bar-track">
-                                  <div className="category-bar-fill" style={{ width: `${pct}%` }} />
+                                  <div
+                                      className="category-bar-fill"
+                                      style={{ width: `${pct}%` }}
+                                  />
                                 </div>
                               </div>
                           );
@@ -478,8 +649,9 @@ function App() {
                       </div>
                     </Panel>
 
-                    <Panel title={`Критические блокеры: ${targetOs}`}
-                           hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
+                    <Panel
+                        title={`Критические блокеры: ${targetOs}`}
+                        hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
                     >
                       <div className="db-blockers-list">
                         {blockerStats?.blockers?.map((b) => (
@@ -495,7 +667,9 @@ function App() {
                             </div>
                         ))}
                         {(!blockerStats || !blockerStats.blockers?.length) && (
-                            <p className="empty">Для выбранной ОС критических блокеров в базе не обнаружено.</p>
+                            <p className="empty">
+                              Для выбранной ОС критических блокеров в базе не обнаружено.
+                            </p>
                         )}
                       </div>
                     </Panel>
@@ -504,15 +678,36 @@ function App() {
             )}
 
             {page === "workstations" && (
-                <Workstations rows={rows} c={c} onPick={setSelected} onUpload={upload} error={error} canEdit={canEdit} />
+                <Workstations
+                    rows={rows}
+                    c={c}
+                    onPick={setSelected}
+                    onUpload={upload}
+                    error={error}
+                    canEdit={canEdit}
+                />
             )}
 
             {page === "criteria" && (
                 <section className="content-grid">
-                  <Panel title="Критерии оборудования" hint="Изменения сразу пересчитывают статусы всех рабочих мест.">
-                    <Criteria c={c} set={setC} osProfiles={osProfiles} targetOs={targetOs} setTargetOs={setTargetOs} canEdit={canEdit} />
+                  <Panel
+                      title="Критерии оборудования"
+                      hint="Пороги берутся из выбранной ОС. Изменения сразу пересчитывают статусы."
+                  >
+                    <Criteria
+                        c={c}
+                        set={setC}
+                        osProfiles={osProfiles}
+                        targetOs={targetOs}
+                        setTargetOs={setTargetOs}
+                        canEdit={canEdit}
+                        onSave={canEdit ? saveCriteria : null}
+                    />
                   </Panel>
-                  <Panel title="Справочник совместимости ПО" hint="Каталог решений и аналогов из базы данных">
+                  <Panel
+                      title="Справочник совместимости ПО"
+                      hint="Каталог решений и аналогов из базы данных"
+                  >
                     <SoftwareCatalog />
                   </Panel>
                 </section>
@@ -522,14 +717,32 @@ function App() {
                 <section className="wave-cols">
                   {waves.map(([w, list], i) => (
                       <div className="panel" key={w} style={{ "--i": i }}>
-                        <div className="panel-header"><div><h3>{w === "—" ? "Не определено" : w}</h3><p>{list.length} рабочих мест</p></div></div>
+                        <div className="panel-header">
+                          <div>
+                            <h3>{w === "—" ? "Не определено" : w}</h3>
+                            <p>{list.length} рабочих мест</p>
+                          </div>
+                        </div>
                         <div className="chips">
                           {list.slice(0, 36).map((r, k) => (
-                              <span key={r.id} className={`mini ${r.status === "Готов" ? "ok" : r.status === "Частично" ? "warn" : "bad"}`} style={{ "--k": k }} onClick={() => setSelected(r)}>
+                              <span
+                                  key={r.id}
+                                  className={`mini ${
+                                      r.status === "Готов"
+                                          ? "ok"
+                                          : r.status === "Частично"
+                                              ? "warn"
+                                              : "bad"
+                                  }`}
+                                  style={{ "--k": k }}
+                                  onClick={() => setSelected(r)}
+                              >
                         {r.id.slice(4)}
                       </span>
                           ))}
-                          {list.length > 36 && <span className="more">+{list.length - 36}</span>}
+                          {list.length > 36 && (
+                              <span className="more">+{list.length - 36}</span>
+                          )}
                         </div>
                       </div>
                   ))}
@@ -538,27 +751,52 @@ function App() {
 
             {page === "report" && (
                 <>
-                  <Panel title="Итоги и рекомендации" hint="Отчёт строится по текущим критериям"
-                         action={
-                           <div className="tools">
-                             <button className="ghost-btn" onClick={exportReport}>Скачать CSV</button>
-                             <button className="ghost-btn" onClick={() => window.print()}>Печать</button>
-                           </div>
-                         }
+                  <Panel
+                      title="Итоги и рекомендации"
+                      hint="Отчёт строится по текущим критериям"
+                      action={
+                        <div className="tools">
+                          <button className="ghost-btn" onClick={exportReport}>
+                            Скачать CSV
+                          </button>
+                          <button
+                              className="ghost-btn"
+                              onClick={() => window.print()}
+                          >
+                            Печать
+                          </button>
+                        </div>
+                      }
                   >
                     <div className="stats-grid">
-                      {[["Всего", rows.length, ""], ["Готовы", ready, "ok"], ["Частично", n("Частично"), "warn"], ["Не готовы", n("Не готов"), "bad"]].map(([l, v, t], i) => (
+                      {[
+                        ["Всего", rows.length, ""],
+                        ["Готовы", ready, "ok"],
+                        ["Частично", n("Частично"), "warn"],
+                        ["Не готовы", n("Не готов"), "bad"],
+                      ].map(([l, v, t], i) => (
                           <div className={`stat-card ${t}`} key={l} style={{ "--i": i }}>
-                            <span>{l}</span><strong><Count to={v} /></strong>
+                            <span>{l}</span>
+                            <strong><Count to={v} /></strong>
                           </div>
                       ))}
                     </div>
                   </Panel>
                   <Panel title="Что сделать">
                     <ol className="recs">
-                      <li><strong>Волна 1 ({waves[0][1].length} мест).</strong> Переводить немедленно: оборудование и ПО полностью подходят.</li>
-                      {blockers.map(([t, v]) => <li key={t}><strong>{t}: {v.count} мест.</strong> {v.fix}.</li>)}
-                      <li><strong>Волна 3 ({waves[2][1].length} мест).</strong> Сначала согласовать замену ПО с пользователями.</li>
+                      <li>
+                        <strong>Волна 1 ({waves[0][1].length} мест).</strong>{" "}
+                        Переводить немедленно: оборудование и ПО полностью подходят.
+                      </li>
+                      {blockers.map(([t, v]) => (
+                          <li key={t}>
+                            <strong>{t}: {v.count} мест.</strong> {v.fix}.
+                          </li>
+                      ))}
+                      <li>
+                        <strong>Волна 3 ({waves[2][1].length} мест).</strong>{" "}
+                        Сначала согласовать замену ПО с пользователями.
+                      </li>
                     </ol>
                   </Panel>
                 </>
@@ -570,7 +808,9 @@ function App() {
           </div>
         </main>
 
-        {selected && <WorkstationModal selected={selected} onClose={() => setSelected(null)} />}
+        {selected && (
+            <WorkstationModal selected={selected} onClose={() => setSelected(null)} />
+        )}
       </div>
   );
 }

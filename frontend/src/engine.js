@@ -1,4 +1,14 @@
-export const defaultCriteria = { minRam: 4, minCores: 2, maxGap: 20 };
+export const defaultCriteria = {
+  // пороги (из OperatingSystem)
+  minRam: 4,
+  minCores: 2,
+  minDisk: 30,
+  maxGap: 20,
+  // веса (из CriteriaWeight) — для будущего скоринга
+  weights: {
+    ram: 30, cpu: 25, disk: 20, blocker_software: 100, unknown_software: 5,
+  },
+};
 
 export const analogs = [
   ["Microsoft Office", "Р7-Офис, МойОфис", "Есть"],
