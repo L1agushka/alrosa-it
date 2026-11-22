@@ -324,7 +324,7 @@ function App() {
     // Блокеры — зависят от targetOs
     useEffect(() => {
         if (!token) return;
-        apiFetch("/api/v1/stats/blockers")
+        apiFetch("/api/v1/stats/blockers" + (currentSessionId ? "?session_id=" + currentSessionId : ""))
             .then((r) => (r.ok ? r.json() : null))
             .then((data) => {
                 if (!data) return;
@@ -337,7 +337,7 @@ function App() {
                 setBlockerStats({ ...data, blockers });
             })
             .catch((err) => console.warn("blockers:", err));
-    }, [targetOs, token]);
+    }, [targetOs, token, currentSessionId]);
 
     /* ─────────── справочник совместимости ─────────── */
     const compatList = useMemo(() => {
@@ -371,8 +371,8 @@ function App() {
             minCores: Math.max(os?.min_cpu_cores || 0, settings.minCores ?? os?.min_cpu_cores ?? 2),
             minDisk: Math.max(os?.min_disk_gb || 0, settings.minDisk ?? os?.min_disk_gb ?? 30),
         });
-        setPolicyMessage("");
     }, [group, policies, targetOs, osProfiles]);
+    useEffect(() => setPolicyMessage(""), [group]);
 
     const canEdit = me?.role === "admin" || me?.role === "analyst";
     const groupSelector = (
@@ -700,8 +700,8 @@ function App() {
                                 </Panel>
 
                                 <Panel
-                                    title={`Критические блокеры: ${targetOs}`}
-                                    hint={`Реестр системных несовместимостей из БД (${blockerStats?.total_blockers || 0} блокеров)`}
+                                    title={`Причины в сохранённом аудите: ${blockerStats?.target_os || targetOs}`}
+                                    hint={`Диагностика выбранного снимка из БД (${blockerStats?.total_blockers || 0} причин)`}
                                 >
                                     <div className="db-blockers-list">
                                         {blockerStats?.blockers?.map((b) => (
@@ -718,7 +718,7 @@ function App() {
                                         ))}
                                         {(!blockerStats || !blockerStats.blockers?.length) && (
                                             <p className="empty">
-                                                Для выбранной ОС критических блокеров в базе не обнаружено.
+                                                В сохранённом аудите причин по ПО не обнаружено.
                                             </p>
                                         )}
                                     </div>
