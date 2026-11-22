@@ -129,7 +129,7 @@ const PRESETS = [
 
 // 🆕 Добавляем canEdit в пропсы
 export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group }) {
-  const [testInput, setTestInput] = useState("gemeni");
+  const [testInput, setTestInput] = useState("");
   const [nlpResult, setNlpResult] = useState(null);
   const [nlpLoading, setNlpLoading] = useState(false);
 
@@ -145,6 +145,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef(null);
+  const requestVersion = useRef(0);
 
   const loadRules = () => {
     apiFetch("/api/v1/policy/custom-rules?group=" + encodeURIComponent(group))
@@ -158,11 +159,13 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
 
   useEffect(() => {
     loadRules();
-    runNlpMatch("gemeni");
+    return () => { requestVersion.current += 1; };
   }, []);
 
   const runNlpMatch = (query, candidateDesc = null) => {
     if (!query) return;
+    const version = ++requestVersion.current;
+    setNlpResult(null);
     setNlpLoading(true);
     setIsSavedBanner(false);
     setForceOverride(false);
@@ -175,7 +178,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
     })
         .then((r) => (r.ok ? r.json() : null))
         .then((res) => {
-          if (res) {
+          if (res && version === requestVersion.current) {
             setNlpResult(res);
             const matchedKey = Object.keys(ENTERPRISE_CATEGORIES).find(
                 (k) => ENTERPRISE_CATEGORIES[k].label === res.category
@@ -187,7 +190,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
           }
         })
         .catch((e) => console.error("NLP error:", e))
-        .finally(() => setNlpLoading(false));
+        .finally(() => { if (version === requestVersion.current) setNlpLoading(false); });
   };
 
   const handleCategoryChange = (catKey) => {

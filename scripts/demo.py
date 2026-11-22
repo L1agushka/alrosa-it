@@ -28,7 +28,7 @@ def main():
                 "pattern":"democad", "software_name":"DemoCAD", "category":"Учебный пример",
                 "status":status, "weight":100 if status == "blocker" else 0,
                 "note":"Демонстрационное правило. Не является рекомендацией совместимости реального ПО.",
-                "alternative":"Пилотная проверка / согласованный аналог"})
+                "alternative":"Проверка совместимости / согласованная замена"})
             if res.status_code != 409:
                 res.raise_for_status()
         filename = "demo_large.csv" if args.large else "demo_groups.csv"

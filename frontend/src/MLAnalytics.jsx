@@ -27,7 +27,7 @@ export default function MLAnalytics({ fleet = [], onPick }) {
   const model = data?.inference_mode === "model";
   const uncertain = (data?.workstations || []).filter(w => w.data_quality.some(t => t.includes("отсутствовало") || t.includes("вне диапазона"))).length;
   return <div className="ml-view">
-    <p className="page-intro">Оцените, какие рабочие места требуют дополнительной проверки перед пилотом. Прогноз ML дополняет аудит; волны перехода определяются правилами групп.</p>
+    <p className="page-intro">Оцените, какие рабочие места требуют дополнительной проверки перед переходом. Прогноз ML дополняет аудит; волны перехода определяются правилами групп.</p>
     <Panel title="Сценарий подготовки" hint="Выберите предполагаемые изменения. Сервер повторно рассчитает прогноз той же моделью; реестр и результаты аудита сохранятся.">
       <div className="scenario-options">{options.map(([key, title]) => <label key={key}><input type="checkbox" checked={scenario[key]} onChange={e => setScenario({...scenario, [key]:e.target.checked})} />{title}</label>)}</div>
       <p className="preview-note">Замена ПО означает предположение о совместимом решении. Её ещё нужно проверить в рабочих сценариях.</p>

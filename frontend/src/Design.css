@@ -137,3 +137,13 @@ button,select,summary { cursor:pointer; }
 .group-selector p { font-size:14px; line-height:1.65; max-width:65ch; color:var(--muted); }
 .rules-columns .empty { min-height:140px; line-height:1.7; }
 @media(max-width:760px) { .group-selector > label { align-items:stretch; flex-direction:column; } .group-selector input { width:100%; } .group-selector > div > button { width:100%; } }
+.app .audit-details { width:min(820px,100%); max-height:90svh; overflow:auto; border-radius:12px; animation:none; }
+.audit-details .modal-header { align-items:flex-start; gap:24px; }
+.audit-details .modal-header p { color:var(--muted); font-size:14px; line-height:1.6; }
+.audit-details h3 { font-size:18px; margin:24px 0 14px; }
+.station-blockers { padding:0; list-style:none; display:grid; gap:14px; }
+.station-blockers li { border:1px solid var(--line); padding:14px 16px; border-radius:8px; font-size:14px; line-height:1.6; }
+.station-blockers strong { color:var(--warn); }
+.station-blockers p { margin:6px 0; }
+.station-blockers span { color:var(--muted); }
+.station-software { padding-left:20px; font-size:14px; line-height:1.8; }

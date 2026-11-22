@@ -7,7 +7,7 @@ export const analogs = [
   ["Microsoft Office", "Р7-Офис, МойОфис", "Есть"],
   ["Windows 10 / 11", "Astra Linux, РЕД ОС", "Есть"],
   ["1С:Предприятие", "1С для Linux", "Есть"],
-  ["AutoCAD", "Требуется пилот", "Вручную"],
+  ["AutoCAD", "Требуется проверка совместимости", "Вручную"],
 ];
 
 export function evaluate(ws, c, customRules = [], compatibility = null) {
