@@ -4,6 +4,7 @@ import SoftwareCatalog from "./SoftwareCatalog";
 import AdminPanel from "./AdminPanel"; // 🆕 Импорт панели администратора
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import "./Design.css";
 import { Count, Panel } from "./ui";
 import Mosaic from "./Mosaic";
 import Builder from "./Builder";
@@ -21,8 +22,8 @@ const navigation = [
     { id: "waves", icon: "≋", title: "Волны перехода" },
     { id: "report", icon: "▤", title: "Отчёт" },
     { id: "builder", icon: "⬡", title: "Конфигуратор ПК" },
-    { id: "ml", icon: "⌬", title: "ML-Аналитика" },
-    { id: "nlp-rules", icon: "◈", title: "Политики и NLP" },
+    { id: "ml", icon: "⌬", title: "Прогноз ML" },
+    { id: "nlp-rules", icon: "◈", title: "Правила ПО" },
     { id: "admin", icon: "⚙️", title: "Управление" }, // 🆕
 ];
 
@@ -131,56 +132,8 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit, onS
 /* ─────────────────────────────────────────────
    Кнопка запуска анализа
    ───────────────────────────────────────────── */
-function ScanButton({ total, ready, onScan }) {
-    const [phase, setPhase] = useState("idle");
-    const [n, setN] = useState(0);
-    const raf = useRef(0);
-    const timer = useRef(0);
-    useEffect(() => () => { cancelAnimationFrame(raf.current); clearTimeout(timer.current); }, []);
-
-    const run = () => {
-        if (phase === "run") return;
-        cancelAnimationFrame(raf.current); clearTimeout(timer.current);
-        onScan(); setPhase("run"); setN(0);
-        const t0 = performance.now();
-        const tick = (now) => {
-            const p = Math.min((now - t0) / 1500, 1);
-            setN(Math.round(total * (1 - (1 - p) * (1 - p))));
-            if (p < 1) raf.current = requestAnimationFrame(tick);
-            else {
-                setPhase("done");
-                timer.current = setTimeout(() => setPhase("idle"), 2600);
-            }
-        };
-        raf.current = requestAnimationFrame(tick);
-    };
-
-    return (
-        <button className={`scan ${phase}`} onClick={run} aria-live="polite">
-            <span className="scan-ring" aria-hidden="true" />
-            <span className="scan-in">
-        {phase === "done" ? (
-            <svg viewBox="0 0 24 24" className="scan-ico tick">
-                <path d="M5 12.5l4.5 4.5L19 7.5" />
-            </svg>
-        ) : (
-            <svg viewBox="0 0 32 32" className="scan-ico">
-                <path d="M16 2 28 12 16 30 4 12Z" />
-                <path d="M4 12h24M11 12l5 18 5-18M11 12l5-10 5 10" />
-            </svg>
-        )}
-                <span className="scan-text">
-          {phase === "idle" && "Запустить анализ"}
-                    {phase === "run" && <>Проверяем <b>{n}</b> из {total}</>}
-                    {phase === "done" && <>Готово: <b>{ready}</b> из {total} готовы</>}
-        </span>
-        <span
-            className="scan-bar"
-            style={{ transform: `scaleX(${phase === "run" ? n / total : 0})` }}
-        />
-      </span>
-        </button>
-    );
+function ScanButton({ onScan }) {
+ return <button className="ghost-btn overview-button" onClick={onScan}>Показать обзор</button>;
 }
 
 /* ─────────────────────────────────────────────
@@ -376,7 +329,7 @@ function App() {
 
     const canEdit = me?.role === "admin" || me?.role === "analyst";
     const groupSelector = (
-        <div className="panel" style={{marginBottom: 20}}>
+        <div className="panel group-selector" style={{marginBottom: 20}}>
             <label>Группа рабочих мест
                 <select className="search" value={group} onChange={e => setGroup(e.target.value)} style={{marginLeft: 16}}>
                     {policies.map(p => <option key={p.group_name}>{p.group_name}</option>)}
@@ -398,7 +351,7 @@ function App() {
                     } catch (e) { setError(e.message); }
                 }}>Создать группу</button>
             </div>}
-            <p>Политика применяется только к строкам с этим значением department. У каждой группы свои пороги, веса и правила ПО.</p>
+            <p>Политика применяется к рабочим местам этого подразделения в реестре. У каждой группы свои пороги, веса и правила ПО.</p>
             {policyMessage && <p role="status">{policyMessage}</p>}
         </div>
     );
@@ -526,7 +479,7 @@ function App() {
 
     return (
         <div className="app">
-            <div className="bg-glow" aria-hidden="true" />
+            <a className="skip-link" href="#main-content">К содержимому</a>
             {!entered && (
                 <Welcome
                     onEnter={() => {
@@ -536,7 +489,7 @@ function App() {
                 />
             )}
 
-            <aside className="sidebar">
+            <aside className="sidebar" inert={!entered ? true : undefined}>
                 <div className="brand">
                     <svg viewBox="0 0 32 32" className="brand-logo">
                         <path d="M16 2 28 12 16 30 4 12Z" />
@@ -547,14 +500,15 @@ function App() {
                         <div className="brand-subtitle">Центр миграции</div>
                     </div>
                 </div>
-                <nav className="navigation">
-                    {navigation.map((i) => (
+                <nav className="navigation" aria-label="Разделы сервиса">
+                    {navigation.filter(i => i.id !== "admin" || isAdmin).map((i) => (
                         <button
                             key={i.id}
+                            aria-current={page === i.id ? "page" : undefined}
                             className={`nav-item ${page === i.id ? "active" : ""}`}
                             onClick={() => setPage(i.id)}
                         >
-                            <span className="nav-icon">{i.icon}</span>
+                            <span className="nav-icon" aria-hidden="true">{i.icon}</span>
                             <span>{i.title}</span>
                         </button>
                     ))}
@@ -580,12 +534,12 @@ function App() {
                 </div>
             </aside>
 
-            <main className="main">
+            <main className="main" inert={!entered ? true : undefined} id="main-content" tabIndex={-1}>
                 <header className="topbar">
                     <h1 key={page}>
                         {navigation.find((i) => i.id === page)?.title || "Панель"}
                     </h1>
-                    <ScanButton total={rows.length} ready={ready} onScan={scan} />
+                    <div className="topbar-actions"><ScanButton onScan={scan} />{canEdit && <label className="upload-action">Загрузить реестр<input type="file" aria-label="Загрузить реестр CSV или XLSX" accept=".csv,.xlsx" onChange={upload} /></label>}</div>
                 </header>
 
                 <div className="page" key={page}>
@@ -603,7 +557,7 @@ function App() {
                                         />
                                     </div>
                                     <span className="hero-sub">
-                    {ready} из {rows.length} рабочих мест можно переводить уже сейчас
+                    {ready} из {rows.length} рабочих мест соответствуют текущим правилам
                   </span>
                                     <div className="legend-btns">
                                         {statuses.map((s) => (
@@ -622,22 +576,8 @@ function App() {
                                             </button>
                                         ))}
                                     </div>
-                                    <div className="hero-criteria">
-                                        <label>Предпросмотр политики группы
-                                            <select className="search" value={group} onChange={e => setGroup(e.target.value)}>
-                                                {policies.map(p => <option key={p.group_name}>{p.group_name}</option>)}
-                                            </select>
-                                        </label>
-                                        <Criteria
-                                            c={c}
-                                            set={setC}
-                                            osProfiles={osProfiles}
-                                            targetOs={targetOs}
-                                            setTargetOs={setTargetOs}
-                                            canEdit={canEdit}
-                                            onSave={canEdit ? saveCriteria : null}
-                                        />
-                                    </div>
+                                    <p className="preview-note">Предпросмотр по действующим правилам групп. Перед переходом проверьте рабочие сценарии на пилоте.</p>
+                                    <button className="ghost-btn" onClick={() => setPage("criteria")}>Проверить критерии групп</button>
                                 </div>
                                 <Mosaic
                                     rows={rows}
@@ -660,7 +600,7 @@ function App() {
                                     ))}
                                     {!blockers.length && (
                                         <p className="empty">
-                                            Блокеров нет. Все рабочие места проходят критерии.
+                                            Блокирующих факторов не найдено. Проверьте полноту реестра перед пилотом.
                                         </p>
                                     )}
                                 </div>
@@ -668,8 +608,8 @@ function App() {
 
                             <div className="content-grid" style={{ marginTop: 24 }}>
                                 <Panel
-                                    title="Стек корпоративного ПО по категориям"
-                                    hint={`Каталог ПО предприятия из PostgreSQL (${softwareStats.reduce(
+                                    title="Справочный каталог ПО"
+                                    hint={`Программы в справочнике (${softwareStats.reduce(
                                         (acc, s) => acc + s.count,
                                         0
                                     )} позиций)`}
@@ -724,6 +664,13 @@ function App() {
                                     </div>
                                 </Panel>
                             </div>
+                            <Panel title="Как пользоваться результатом" className="help-panel">
+                              <details><summary>С чего начать?</summary><p>Настройте требования группы в разделе «Критерии», проверьте правила ПО и загрузите реестр CSV или XLSX. Шаблон доступен в разделе «Рабочие места».</p></details>
+                              <details><summary>Почему одинаковые компьютеры попали в разные волны?</summary><p>Требования к оборудованию, допустимая доля ПО без аналога и исключения для программ задаются отдельно для каждой группы.</p></details>
+                              <details><summary>Меняются ли прошлые аудиты после правки правил?</summary><p>Нет. Обзор показывает предпросмотр по текущим правилам, а сохранённый аудит остаётся снимком результата на момент загрузки.</p></details>
+                              <details><summary>Можно ли сразу переносить все готовые места?</summary><p>Соответствие правилам помогает выбрать кандидатов на пилот. Совместимость драйверов, лицензий и рабочих сценариев нужно проверить отдельно.</p></details>
+                              <details><summary>Как связаны ML и волны перехода?</summary><p>Волны определяет аудит по правилам. ML даёт отдельную оценку на синтетически обученной модели и не снимает блокирующие факторы.</p></details>
+                            </Panel>
                         </>
                     )}
 
@@ -836,7 +783,7 @@ function App() {
                                 <ol className="recs">
                                     <li>
                                         <strong>Волна 1 ({waves[0][1].length} мест).</strong>{" "}
-                                        Переводить немедленно: оборудование и ПО полностью подходят.
+                                        Кандидаты на пилот: оборудование и ПО соответствуют текущим правилам.
                                     </li>
                                     {blockers.map(([t, v]) => (
                                         <li key={t}>

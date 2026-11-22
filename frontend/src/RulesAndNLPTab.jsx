@@ -296,13 +296,13 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
       <div style={{ display: "grid", gap: "24px" }}>
         {/* 1. КЛАССИФИКАТОР */}
         <Panel
-            title="🌐 Интеллектуальный классификатор ПО (Disambiguation & Manual Mapping)"
-            hint="Семантическое сопоставление сущностей, выбор кандидатов и управление корпоративными блокираторами"
+            title="Проверка названия ПО"
+            hint="Найдите программу и задайте правило для выбранной группы"
         >
-          <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1.35fr", gap: "24px" }}>
+          <div className="rules-columns">
             <div>
               <label style={{ fontSize: "13px", color: "var(--muted)", display: "block", marginBottom: "8px" }}>
-                Поиск программы или файла инвентаризации:
+                Название программы:
               </label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <input
@@ -311,7 +311,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                     value={testInput}
                     onChange={(e) => setTestInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && runNlpMatch(testInput)}
-                    placeholder="gemeni, calculator, ChatGPT, autocad, spotify, monkey..."
+                    aria-label="Название программы" placeholder="Например, AutoCAD или 1С"
                 />
                 <button
                     className="on"
@@ -338,7 +338,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
               {candidates.length > 0 && (
                   <div style={{ marginTop: "20px", padding: "14px", background: "var(--panel-2)", borderRadius: "8px", border: "1px solid var(--line)" }}>
                 <span style={{ fontSize: "12px", color: "var(--ice)", fontWeight: "700", display: "block", marginBottom: "10px" }}>
-                  💡 Возможно, вы имели в виду (Кликните для выбора варианта):
+                  Похожие названия — выберите подходящее:
                 </span>
                     <div style={{ display: "grid", gap: "8px" }}>
                       {candidates.map((c, idx) => (
@@ -358,7 +358,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                           >
                             <div style={{ overflow: "hidden", paddingRight: "8px" }}>
                               <strong style={{ fontSize: "13px", color: "var(--text)", display: "block" }}>{c.label}</strong>
-                              <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <span style={{ fontSize: "11px", color: "var(--muted)", display: "block", whiteSpace: "normal", overflowWrap: "anywhere" }}>
                           {c.description}
                         </span>
                             </div>
@@ -412,7 +412,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                               Отказ в регистрации блокиратора ПО
                             </strong>
                             <span style={{ fontSize: "12px", color: "var(--muted)", lineHeight: "1.4", display: "block" }}>
-                        Объект классифицирован как непрограммная сущность реального мира. Автоматическая фиксация в реестре программных активов заблокирована системой аудита.
+                        Название не похоже на программу. Проверьте написание или добавьте ручное правило группы.
                       </span>
                           </div>
                         </div>
@@ -458,13 +458,13 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                               gap: "8px"
                             }}>
                               <span>⚠️</span>
-                              <span><strong>Режим ручной изоляции:</strong> Объект будет заблокирован как нестандартная сущность в обход глобального реестра.</span>
+                              <span><strong>Ручное правило группы:</strong> Правило будет применяться только к выбранной группе.</span>
                             </div>
                         )}
 
                         <div>
                           <label style={{ fontSize: "12px", color: "var(--ice)", fontWeight: "700", display: "block", marginBottom: "6px" }}>
-                            🏷 Соотнести класс ПО:
+                            Категория программы:
                           </label>
                           <select
                               value={chosenCategory}
@@ -487,9 +487,9 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
 
                         <div>
                           <label style={{ fontSize: "12px", color: "var(--ice)", fontWeight: "700", display: "block", marginBottom: "6px" }}>
-                            ⚡ Статус в миграции (Влияет на скоринг парка):
+                            Статус при проверке рабочих мест:
                           </label>
-                          <select
+                          <select aria-label="Статус при проверке"
                               value={customStatus}
                               onChange={(e) => setCustomStatus(e.target.value)}
                               style={{
@@ -510,9 +510,9 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
 
                         <div>
                           <label style={{ fontSize: "12px", color: "var(--muted)", display: "block", marginBottom: "4px" }}>
-                            Отечественный аналог из реестра Минцифры:
+                            Замена или способ перехода:
                           </label>
-                          <input
+                          <input aria-label="Замена или способ перехода"
                               className="search"
                               style={{ width: "100%", background: "var(--bg)", fontSize: "13px", padding: "7px 10px" }}
                               value={customAlt}
@@ -545,7 +545,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                                   }}
                                   onClick={handleSaveToPolicies}
                               >
-                                {busy ? "..." : "💾 Зафиксировать в политиках"}
+                                {busy ? "..." : "Добавить правило группы"}
                               </button>
                           )}
                         </div>
@@ -554,13 +554,13 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
 
                   {isSavedBanner && (
                       <div style={{ marginTop: "10px", padding: "8px 12px", background: "rgba(34, 197, 94, 0.15)", border: "1px solid var(--ok)", borderRadius: "6px", color: "var(--ok)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span>✔</span> <strong>Успешно сохранено!</strong> Статус применён к алгоритму скоринга и затронет ПК выбранной группы с этим ПО.
+                        <span>✔</span> <strong>Правило сохранено.</strong> Предпросмотр группы обновится. Результаты прошлых аудитов останутся прежними.
                       </div>
                   )}
                 </div>
             ) : (
                 <div className="empty" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  Ожидание ввода...
+                  Введите название программы, чтобы проверить её статус.
                 </div>
             )}
           </div>
@@ -588,8 +588,8 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                   <p style={{ margin: 0 }}>
                     Вы собираетесь принудительно зафиксировать сущность <strong>«{nlpResult?.normalized_name}»</strong>, которую классификатор идентифицировал как <strong>не относящуюся к цифровому ПО</strong>.
                   </p>
-                  <div style={{ padding: "10px 12px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", borderLeft: "3px solid #ef4444", color: "var(--text)" }}>
-                    В таком случае целевые ПК будут <strong>проверены по вручную добавленному правилу выбранной группы</strong>, а правило получит флаг ручной изоляции (Manual Override).
+                  <div style={{ padding: "10px 12px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", border: "1px solid #ef4444", color: "var(--text)" }}>
+                    В таком случае целевые ПК будут <strong>проверены по вручную добавленному правилу выбранной группы</strong>, Сохранённые результаты прошлых аудитов останутся прежними.
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
@@ -607,7 +607,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
 
         {/* 2. ПАНЕЛЬ УПРАВЛЕНИЯ ПРАВИЛАМИ */}
         <Panel
-            title="🛡 Реестр пользовательских политик и зафиксированных соответствий"
+            title="Правила ПО выбранной группы"
             hint="Управление правилами: пресеты, ручное создание, импорт/экспорт JSON"
         >
           {error && <div className="error">{error}</div>}
@@ -679,7 +679,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group 
                     {/* 🆕 Прячем кнопку удаления, если нет прав */}
                     {canEdit && (
                         <td style={{ textAlign: "right" }}>
-                          <button className="ghost-btn" style={{ padding: "3px 8px", color: "var(--bad)" }} onClick={() => handleDeleteRule(r.id)}>
+                          <button aria-label={`Удалить правило ${r.software_name}`} className="ghost-btn" style={{ padding: "3px 8px", color: "var(--bad)" }} onClick={() => handleDeleteRule(r.id)}>
                             ✕
                           </button>
                         </td>

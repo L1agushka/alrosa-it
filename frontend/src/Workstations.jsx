@@ -69,21 +69,21 @@ export default function Workstations({ rows, c, onPick, onUpload, error, canEdit
   return (
     <div className="ws">
       <div className="ws-tools">
-        <input className="search ws-search" value={q} onChange={set(setQ)} placeholder="Найти место, сотрудника или отдел" />
+        <input aria-label="Поиск рабочего места" className="search ws-search" value={q} onChange={set(setQ)} placeholder="Найти место, сотрудника или отдел" />
         <div className="seg">
           {[["", "Все", rows.length], ...Object.keys(tone).map((s) => [s, s, count(s)])].map(([v, l, n]) => (
-            <button key={l} className={st === v ? "on" : ""} onClick={() => { setSt(v); setLimit(24); }}>{l} <span>{n}</span></button>
+            <button key={l} aria-pressed={st === v} className={st === v ? "on" : ""} onClick={() => { setSt(v); setLimit(24); }}>{l} <span>{n}</span></button>
           ))}
         </div>
-        <select className="search" value={dept} onChange={set(setDept)}>
+        <select aria-label="Подразделение" className="search" value={dept} onChange={set(setDept)}>
           <option value="">Все отделы</option>{depts.map((d) => <option key={d}>{d}</option>)}
         </select>
-        <select className="search" value={sort} onChange={(e) => setSort(e.target.value)}>
+        <select aria-label="Порядок рабочих мест" className="search" value={sort} onChange={(e) => setSort(e.target.value)}>
           {Object.entries(sorts).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
           {canEdit && (
               <div className="ws-files">
-                  <label className="ghost-btn">Загрузить CSV / XLSX<input type="file" accept=".csv,.xlsx" hidden onChange={onUpload} /></label>
+                  <label className="upload-action">Загрузить CSV / XLSX<input aria-label="Выбрать реестр" type="file" accept=".csv,.xlsx" onChange={onUpload} /></label>
                   <button className="ghost-btn" onClick={() => download("shablon.csv", template)}>Шаблон</button>
               </div>
           )}
@@ -97,7 +97,7 @@ export default function Workstations({ rows, c, onPick, onUpload, error, canEdit
           {list.slice(0, limit).map((w, i) => <Card key={w.id} w={w} c={c} i={i % 24} onPick={onPick} />)}
         </div>
       ) : (
-        <div className="ws-empty"><strong>Ничего не найдено</strong><span>Попробуйте изменить запрос или фильтры.</span><button className="ghost-btn" onClick={reset}>Сбросить фильтры</button></div>
+        <div className="ws-empty"><strong>{rows.length ? "Рабочие места не найдены" : "Реестр ещё не загружен"}</strong><span>{rows.length ? "Измените запрос или сбросьте фильтры." : "Скачайте шаблон, заполните его и загрузите CSV или XLSX."}</span><button className="ghost-btn" onClick={reset}>Сбросить фильтры</button></div>
       )}
 
       {list.length > limit && <button className="ghost-btn ws-more" onClick={() => setLimit(limit + 24)}>Показать ещё ({list.length - limit})</button>}

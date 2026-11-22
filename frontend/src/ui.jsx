@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 
 /* ───────── утилиты ───────── */
 export function useCountUp(target, duration = 1100) {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target);
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setValue(target); return; }
     let raf;
     const start = performance.now();
     const tick = (now) => {

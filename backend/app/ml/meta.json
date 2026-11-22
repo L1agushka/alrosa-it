@@ -1,50 +1,188 @@
 {
-  "model_name": "RandomForest_Migration_Risk_v1",
+  "schema_version": 2,
+  "model_name": "Calibrated Random Forest v2",
+  "dataset_kind": "synthetic",
+  "dataset_sha256": "199a0a3adf684cd903484f0ae7509ecd880ef76a8ea5d02adc346795addeec15",
+  "model_sha256": "7192d0ea786f28f5408a8d49df2c28842c2582bd0a2e397ce6be1f83c301539c",
+  "feature_columns": [
+    "department",
+    "ram_gb",
+    "cpu_cores",
+    "disk_gb",
+    "installed_apps_count",
+    "unsupported_apps_count",
+    "has_crypto_tools",
+    "has_cad_software",
+    "has_thick_1c",
+    "peripherals_count"
+  ],
+  "seed": 42,
+  "split": {
+    "train_rows": 2000,
+    "test_rows": 500,
+    "test_fraction": 0.2,
+    "calibration": "3-fold stratified cross-validation on training rows only",
+    "test_ids_sha256": "a5568fdf17c99c94be3cf9f68bf1074d6a27e66065a99edd441cb1bdb26cf93b"
+  },
+  "versions": {
+    "python": "3.11.18",
+    "scikit_learn": "1.9.1",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "pandas": "3.1.1",
+    "joblib": "1.6.0"
+  },
   "metrics": {
-    "accuracy": 0.836,
-    "f1_score": 0.772,
-    "roc_auc": 0.907
+    "accuracy": 0.838,
+    "f1_score": 0.7793,
+    "roc_auc": 0.912,
+    "brier_score": 0.1159,
+    "log_loss": 0.3666,
+    "confusion_matrix": [
+      [
+        276,
+        23
+      ],
+      [
+        58,
+        143
+      ]
+    ]
+  },
+  "baseline": {
+    "name": "Logistic regression",
+    "metrics": {
+      "accuracy": 0.766,
+      "f1_score": 0.6795,
+      "roc_auc": 0.8607,
+      "brier_score": 0.1493,
+      "log_loss": 0.4549,
+      "confusion_matrix": [
+        [
+          259,
+          40
+        ],
+        [
+          77,
+          124
+        ]
+      ]
+    }
   },
   "feature_importances": [
     {
-      "feature": "Количество ПО без нативного Linux-бинарника",
-      "weight_pct": 18.01
+      "feature": "Оперативная память",
+      "code": "ram_gb",
+      "roc_auc_drop": 0.10195,
+      "weight_pct": 23.87
     },
     {
-      "feature": "Объем оперативной памяти (ОЗУ)",
-      "weight_pct": 17.58
+      "feature": "Программы, требующие проверки",
+      "code": "unsupported_apps_count",
+      "roc_auc_drop": 0.08893,
+      "weight_pct": 20.83
     },
     {
-      "feature": "Наличие СКЗИ и криптопровайдеров (ЭЦП)",
-      "weight_pct": 15.38
+      "feature": "Криптографическое ПО",
+      "code": "has_crypto_tools",
+      "roc_auc_drop": 0.08642,
+      "weight_pct": 20.24
     },
     {
-      "feature": "Количество внешней периферии (сканеры/токены)",
-      "weight_pct": 10.31
+      "feature": "Локальный клиент 1С",
+      "code": "has_thick_1c",
+      "roc_auc_drop": 0.03919,
+      "weight_pct": 9.18
     },
     {
-      "feature": "Специфика подразделения компании",
-      "weight_pct": 7.93
+      "feature": "Периферийные устройства",
+      "code": "peripherals_count",
+      "roc_auc_drop": 0.03898,
+      "weight_pct": 9.13
     },
     {
-      "feature": "Локальные толстые клиенты 1С",
-      "weight_pct": 7.47
+      "feature": "Инженерное ПО",
+      "code": "has_cad_software",
+      "roc_auc_drop": 0.03679,
+      "weight_pct": 8.62
     },
     {
-      "feature": "Общая сложность окружения (кол-во приложений)",
-      "weight_pct": 6.92
+      "feature": "Ядра процессора",
+      "code": "cpu_cores",
+      "roc_auc_drop": 0.02311,
+      "weight_pct": 5.41
     },
     {
-      "feature": "Количество ядер процессора",
-      "weight_pct": 5.96
+      "feature": "Объём диска",
+      "code": "disk_gb",
+      "roc_auc_drop": 0.00782,
+      "weight_pct": 1.83
     },
     {
-      "feature": "Свободное дисковое пространство",
-      "weight_pct": 5.81
+      "feature": "Подразделение",
+      "code": "department",
+      "roc_auc_drop": 0.00384,
+      "weight_pct": 0.9
     },
     {
-      "feature": "Наличие тяжелого САПР/CAD ПО",
-      "weight_pct": 4.64
+      "feature": "Количество программ",
+      "code": "installed_apps_count",
+      "roc_auc_drop": -0.00117,
+      "weight_pct": 0.0
     }
+  ],
+  "importance_method": "Permutation importance, ROC-AUC, held-out synthetic test data",
+  "training_departments": [
+    "Бухгалтерия и финансовый контроль",
+    "Геологоразведочная партия",
+    "Логистика и материально-техническое снабжение",
+    "Отдел кадров и делопроизводства",
+    "Служба главного механика",
+    "Управление информационных технологий",
+    "Юридический департамент"
+  ],
+  "feature_ranges": {
+    "ram_gb": {
+      "min": 4.0,
+      "max": 32.0
+    },
+    "cpu_cores": {
+      "min": 2.0,
+      "max": 12.0
+    },
+    "disk_gb": {
+      "min": 64.0,
+      "max": 1024.0
+    },
+    "installed_apps_count": {
+      "min": 3.0,
+      "max": 20.0
+    },
+    "unsupported_apps_count": {
+      "min": 0.0,
+      "max": 6.0
+    },
+    "has_crypto_tools": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "has_cad_software": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "has_thick_1c": {
+      "min": 0.0,
+      "max": 1.0
+    },
+    "peripherals_count": {
+      "min": 1.0,
+      "max": 5.0
+    }
+  },
+  "limitations": [
+    "Synthetic target labels, not enterprise incident history.",
+    "Unmeasured peripheral count defaults to 2 and is disclosed.",
+    "Scenario forecasts are counterfactual estimates, not causal evidence.",
+    "Low model risk does not override an audit blocker."
   ]
 }

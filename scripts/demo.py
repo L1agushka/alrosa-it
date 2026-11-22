@@ -9,6 +9,7 @@ import httpx
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="http://localhost")
+    parser.add_argument("--large", action="store_true", help="120 synthetic workstations for presentation screenshots")
     args = parser.parse_args()
     with httpx.Client(base_url=args.base_url, timeout=60) as client:
         login = client.post("/api/v1/auth/token", data={
@@ -30,11 +31,12 @@ def main():
                 "alternative":"Пилотная проверка / согласованный аналог"})
             if res.status_code != 409:
                 res.raise_for_status()
-        data = (Path(__file__).parent / "demo_groups.csv").read_bytes()
-        res = client.post("/api/v1/audit/upload",files={"file":("demo_groups.csv",data,"text/csv")})
+        filename = "demo_large.csv" if args.large else "demo_groups.csv"
+        data = (Path(__file__).parent / filename).read_bytes()
+        res = client.post("/api/v1/audit/upload",files={"file":(filename,data,"text/csv")})
         res.raise_for_status()
         report = res.json()
-        assert [w["wave"] for w in report["workstations"]] == [1,3,2,2,3,1], report
+        assert [w["wave"] for w in report["workstations"][:6]] == [1,3,2,2,3,1], report
         history = client.get(f'/api/v1/audit/history/{report["id"]}')
         history.raise_for_status()
         assert history.json()["workstations"][0]["installed_software"] == ["DemoCAD"]

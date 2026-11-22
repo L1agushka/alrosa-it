@@ -20,7 +20,7 @@ export default function LoginScreen({ onLogin }) {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body,
             });
-            if (!res.ok) throw new Error("Неверный email или пароль");
+            if (!res.ok) throw new Error(res.status === 401 ? "Проверьте почту и пароль" : "Сервис временно недоступен. Попробуйте ещё раз");
             const data = await res.json();
             onLogin(data.access_token);
         } catch (err) {
@@ -30,38 +30,12 @@ export default function LoginScreen({ onLogin }) {
         }
     };
 
-    return (
-        <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", background: "#090d13" }}>
-            <form onSubmit={submit} style={{ background: "#111823", padding: 40, borderRadius: 16, width: 360 }}>
-                <h2 style={{ color: "#e8eef5", marginTop: 0 }}>ALROSA IT</h2>
-                <p style={{ color: "#8496ab", fontSize: 14 }}>Вход в систему</p>
-
-                <label style={{ color: "#8496ab", fontSize: 13 }}>Email</label>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={{ width: "100%", padding: 10, marginBottom: 14, background: "#172130", border: "1px solid #223044", borderRadius: 8, color: "#e8eef5" }}
-                />
-
-                <label style={{ color: "#8496ab", fontSize: 13 }}>Пароль</label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={{ width: "100%", padding: 10, marginBottom: 14, background: "#172130", border: "1px solid #223044", borderRadius: 8, color: "#e8eef5" }}
-                />
-
-                {error && <div style={{ color: "#ff6b7a", marginBottom: 14, fontSize: 13 }}>{error}</div>}
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    style={{ width: "100%", padding: 12, background: "#7fd8ff", color: "#06202c", border: 0, borderRadius: 10, fontWeight: 700, cursor: "pointer" }}
-                >
-                    {loading ? "Вход..." : "Войти"}
-                </button>
-            </form>
-        </div>
-    );
+    return <main className="login-page"><form onSubmit={submit} className="login-form">
+ <div className="eyebrow">ALROSA IT</div><h1>Вход в рабочее пространство</h1>
+ <p>Проверка готовности рабочих мест к переходу на отечественное ПО.</p>
+ <label htmlFor="login-email">Рабочая почта</label><input id="login-email" name="username" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} />
+ <label htmlFor="login-password">Пароль</label><input id="login-password" name="password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} />
+ {error && <p role="alert" className="error">{error === "Failed to fetch" ? "Не удалось связаться с сервером. Проверьте подключение" : error}</p>}
+ <button className="primary-btn" type="submit" disabled={loading}>{loading ? "Входим…" : "Войти"}</button><small>Используйте учётную запись, выданную администратором.</small>
+ </form></main>;
 }

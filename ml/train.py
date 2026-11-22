@@ -1,132 +1,107 @@
+"""Train and evaluate the synthetic migration-risk prototype reproducibly."""
+import argparse
+import hashlib
 import json
+from pathlib import Path
+import platform
+import sys
+
 import joblib
 import numpy as np
 import pandas as pd
+import scipy
+import sklearn
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classification_report
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.inspection import permutation_importance
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, brier_score_loss, confusion_matrix, f1_score, log_loss, roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-# 1. Загрузка данных
-df = pd.read_csv("ml/data/migration_dataset.csv")
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "backend"))
+from app.ml_contract import FEATURE_COLUMNS, FEATURE_LABELS, SCHEMA_VERSION
 
-categorical_features = ["department"]
-numeric_features = [
-    "ram_gb",
-    "cpu_cores",
-    "disk_gb",
-    "installed_apps_count",
-    "unsupported_apps_count",
-    "has_crypto_tools",
-    "has_cad_software",
-    "has_thick_1c",
-    "peripherals_count",
-]
 
-feature_columns = categorical_features + numeric_features
-X = df[feature_columns]
-y = df["incident_occurred"]
+def metrics(y, probabilities):
+    prediction = probabilities >= 0.5
+    return {"accuracy": round(accuracy_score(y, prediction), 4),
+            "f1_score": round(f1_score(y, prediction, zero_division=0), 4),
+            "roc_auc": round(roc_auc_score(y, probabilities), 4),
+            "brier_score": round(brier_score_loss(y, probabilities), 4),
+            "log_loss": round(log_loss(y, probabilities), 4),
+            "confusion_matrix": confusion_matrix(y, prediction, labels=[0,1]).tolist()}
 
-# 2. Разделение на train / test (80 / 20)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.20, random_state=42, stratify=y
-)
 
-# 3. Сборка пайплайна предобработки и модели
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), categorical_features),
-        ("num", "passthrough", numeric_features),
-    ]
-)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", type=Path, default=ROOT / "ml/data/migration_dataset.csv")
+    parser.add_argument("--output", type=Path, default=ROOT / "backend/app/ml")
+    args = parser.parse_args()
+    df = pd.read_csv(args.data)
+    if not set(FEATURE_COLUMNS + ["incident_occurred", "workstation_id"]) <= set(df.columns):
+        raise ValueError("Dataset does not match the feature contract")
+    if df.workstation_id.duplicated().any() or df[FEATURE_COLUMNS].isna().any().any():
+        raise ValueError("Missing values or duplicate workstation identifiers")
+    X, y = df[FEATURE_COLUMNS], df.incident_occurred
+    if set(y.unique()) != {0,1}:
+        raise ValueError("Training requires both binary target classes")
+    numeric = FEATURE_COLUMNS[1:]
+    if (X[numeric] < 0).any().any() or not np.isfinite(X[numeric]).all().all():
+        raise ValueError("Invalid numeric training features")
+    train_idx, test_idx = train_test_split(np.arange(len(df)), test_size=0.2, random_state=42, stratify=y)
+    assert not set(train_idx) & set(test_idx)
+    X_train, X_test, y_train, y_test = X.iloc[train_idx], X.iloc[test_idx], y.iloc[train_idx], y.iloc[test_idx]
 
-clf = RandomForestClassifier(
-    n_estimators=120,
-    max_depth=9,
-    min_samples_split=5,
-    random_state=42,
-    n_jobs=-1
-)
+    def preprocessing(scale=False):
+        return ColumnTransformer([
+            ("department", OneHotEncoder(handle_unknown="ignore", sparse_output=False), ["department"]),
+            ("numeric", StandardScaler() if scale else "passthrough", numeric)])
+    forest = Pipeline([("preprocess", preprocessing()), ("classifier", RandomForestClassifier(
+        n_estimators=160, max_depth=9, min_samples_leaf=4, random_state=42, n_jobs=1))])
+    model = CalibratedClassifierCV(estimator=forest, method="sigmoid",
+        cv=StratifiedKFold(3, shuffle=True, random_state=42), ensemble=True, n_jobs=1)
+    model.fit(X_train, y_train)
+    baseline = Pipeline([("preprocess", preprocessing(True)),
+                         ("classifier", LogisticRegression(max_iter=1500, random_state=42))])
+    baseline.fit(X_train, y_train)
+    positive = list(model.classes_).index(1)
+    probabilities = model.predict_proba(X_test)[:, positive]
+    importance = permutation_importance(model, X_test, y_test, n_repeats=5, random_state=42, scoring="roc_auc")
+    positive_total = np.maximum(importance.importances_mean, 0).sum()
+    factors = [{"feature":FEATURE_LABELS[code], "code":code, "roc_auc_drop":round(float(value),5),
+                "weight_pct":round(float(max(value,0)/positive_total*100),2) if positive_total else 0}
+               for code,value in zip(FEATURE_COLUMNS, importance.importances_mean)]
+    args.output.mkdir(parents=True, exist_ok=True)
+    model_path = args.output / "random_forest.joblib"
+    joblib.dump(model, model_path, compress=3)
+    meta = {
+        "schema_version":SCHEMA_VERSION, "model_name":"Calibrated Random Forest v2",
+        "dataset_kind":"synthetic", "dataset_sha256":hashlib.sha256(args.data.read_bytes()).hexdigest(),
+        "model_sha256":hashlib.sha256(model_path.read_bytes()).hexdigest(),
+        "feature_columns":FEATURE_COLUMNS, "seed":42,
+        "split":{"train_rows":len(train_idx), "test_rows":len(test_idx), "test_fraction":0.2,
+                 "calibration":"3-fold stratified cross-validation on training rows only",
+                 "test_ids_sha256":hashlib.sha256("\n".join(df.workstation_id.iloc[test_idx]).encode()).hexdigest()},
+        "versions":{"python":platform.python_version(), "scikit_learn":sklearn.__version__,
+                    "numpy":np.__version__, "scipy":scipy.__version__, "pandas":pd.__version__, "joblib":joblib.__version__},
+        "metrics":metrics(y_test, probabilities),
+        "baseline":{"name":"Logistic regression", "metrics":metrics(y_test, baseline.predict_proba(X_test)[:,1])},
+        "feature_importances":sorted(factors,key=lambda f:f["weight_pct"],reverse=True),
+        "importance_method":"Permutation importance, ROC-AUC, held-out synthetic test data",
+        "training_departments":sorted(df.department.unique().tolist()),
+        "feature_ranges":{col:{"min":float(X_train[col].min()),"max":float(X_train[col].max())} for col in numeric},
+        "limitations":["Synthetic target labels, not enterprise incident history.",
+                       "Unmeasured peripheral count defaults to 2 and is disclosed.",
+                       "Scenario forecasts are counterfactual estimates, not causal evidence.",
+                       "Low model risk does not override an audit blocker."],
+    }
+    (args.output / "meta.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print(json.dumps({"metrics":meta["metrics"],"baseline":meta["baseline"],"split":meta["split"]},ensure_ascii=False,indent=2))
 
-model = Pipeline(steps=[
-    ("preprocessor", preprocessor),
-    ("classifier", clf)
-])
 
-# 4. Обучение
-model.fit(X_train, y_train)
-
-# 5. Оценка качества
-y_pred = model.predict(X_test)
-y_proba = model.predict_proba(X_test)[:, 1]
-
-acc = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-roc = roc_auc_score(y_test, y_proba)
-
-print("=" * 50)
-print(f"Метрики на тестовой выборке:")
-print(f"Accuracy:  {acc:.3f}")
-print(f"F1-Score:  {f1:.3f}")
-print(f"ROC-AUC:   {roc:.3f}")
-print("=" * 50)
-print(classification_report(y_test, y_pred, target_names=["Без инцидента", "Инцидент"]))
-
-# 6. Расчет важности признаков (Feature Importances)
-ohe = model.named_steps["preprocessor"].named_transformers_["cat"]
-cat_names = list(ohe.get_feature_names_out(categorical_features))
-all_feature_names = cat_names + numeric_features
-
-raw_importances = model.named_steps["classifier"].feature_importances_
-
-# Агрегируем категории отделов в один признак для наглядности руководству
-feature_mapping = {
-    "has_cad_software": "Наличие тяжелого САПР/CAD ПО",
-    "ram_gb": "Объем оперативной памяти (ОЗУ)",
-    "unsupported_apps_count": "Количество ПО без нативного Linux-бинарника",
-    "has_crypto_tools": "Наличие СКЗИ и криптопровайдеров (ЭЦП)",
-    "disk_gb": "Свободное дисковое пространство",
-    "has_thick_1c": "Локальные толстые клиенты 1С",
-    "peripherals_count": "Количество внешней периферии (сканеры/токены)",
-    "cpu_cores": "Количество ядер процессора",
-    "installed_apps_count": "Общая сложность окружения (кол-во приложений)",
-}
-
-importance_summary = {}
-dept_sum = 0.0
-
-for name, imp in zip(all_feature_names, raw_importances):
-    if name.startswith("department_"):
-        dept_sum += imp
-    else:
-        label = feature_mapping.get(name, name)
-        importance_summary[label] = round(float(imp * 100), 2)
-
-importance_summary["Специфика подразделения компании"] = round(dept_sum * 100, 2)
-sorted_importance = sorted(importance_summary.items(), key=lambda x: x[1], reverse=True)
-
-print("Топ факторов риска (для отчёта и дашборда):")
-for name, val in sorted_importance:
-    print(f"  • {name}: {val:.1f}%")
-
-# 7. Сохранение артефактов
-joblib.dump(model, "ml/models/random_forest.joblib")
-
-meta = {
-    "model_name": "RandomForest_Migration_Risk_v1",
-    "metrics": {
-        "accuracy": round(acc, 3),
-        "f1_score": round(f1, 3),
-        "roc_auc": round(roc, 3)
-    },
-    "feature_importances": [
-        {"feature": k, "weight_pct": v} for k, v in sorted_importance
-    ]
-}
-
-with open("ml/models/meta.json", "w", encoding="utf-8") as f:
-    json.dump(meta, f, ensure_ascii=False, indent=2)
-
-print("\nМодель и метаданные сохранены в ml/models/")
+if __name__ == "__main__":
+    main()

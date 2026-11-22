@@ -3,9 +3,11 @@
 """
 from typing import Annotated
 
+from pydantic import BaseModel
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from ...core.database import get_db
 from ...dependencies.auth import require_viewer
@@ -153,18 +155,36 @@ def get_waves_distribution(
     return [WaveDistribution(wave=w, status=s.value, count=c) for w, s, c in rows]
 
 
-@router.get("/ml-risk", summary="Предиктивный ML-скоринг")
+class MLScenario(BaseModel):
+    model_config = {"extra": "forbid", "strict": True}
+    upgrade_ram: bool = False
+    replace_cad: bool = False
+    web_1c: bool = False
+    compatible_crypto: bool = False
+
+
+def _ml_workstations(db, session_id):
+    session = _resolve_session(db, session_id)
+    return db.query(Workstation).options(
+        selectinload(Workstation.assessment).selectinload(Assessment.blockers),
+        selectinload(Workstation.software),
+    ).filter(Workstation.audit_session_id == session.id).all()
+
+
+@router.get("/ml-risk", summary="Прогноз ML по выбранному аудиту")
 def get_ml_risk_stats(
     _: Annotated[User, Depends(require_viewer)],
+    session_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    workstations = []
-    try:
-        latest = db.query(AuditSession).order_by(AuditSession.created_at.desc()).first()
-        if latest and getattr(latest, "workstations", None):
-            workstations = latest.workstations
-        else:
-            workstations = db.query(Workstation).all()
-    except Exception as e:
-        print(f"[ML-Risk] {e}")
-    return ml_risk_service.predict_risk(workstations)
+    return ml_risk_service.predict_risk(_ml_workstations(db, session_id))
+
+
+@router.post("/ml-risk/simulate", summary="Сценарный расчёт без изменения аудита")
+def simulate_ml_risk(
+    options: MLScenario,
+    _: Annotated[User, Depends(require_viewer)],
+    session_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    return ml_risk_service.predict_risk(_ml_workstations(db, session_id), options.model_dump())
