@@ -5,12 +5,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 # Собираем оптимизированный production-бандл в папку /app/dist
-RUN npm run build
+RUN npm test && npm run build
 
 # --- STAGE 2: Финальный легковесный runtime-образ ---
 FROM nginx:1.25-alpine

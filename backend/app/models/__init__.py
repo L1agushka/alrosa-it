@@ -35,3 +35,4 @@ __all__ = [
     "Assessment",
     "AssessmentBlocker",
 ]
+from .group_policy import GroupPolicy

@@ -1,0 +1,7 @@
+workstation_id,department,user_fullname,current_os,cpu_cores,ram_gb,disk_gb,installed_software
+WS-001,Демо: офис,Демо 1,Windows 10,4,8,120,DemoCAD
+WS-002,Демо: инженеры,Демо 2,Windows 10,4,8,120,DemoCAD
+WS-003,Демо: офис,Демо 3,Windows 10,4,2,120,Google Chrome
+WS-004,Демо: инженеры,Демо 4,Windows 10,4,8,120,Google Chrome
+WS-005,Демо: бухгалтерия,Демо 5,Windows 10,4,16,120,AnyDesk
+WS-006,Демо: бухгалтерия,Демо 6,Windows 10,4,16,120,Google Chrome

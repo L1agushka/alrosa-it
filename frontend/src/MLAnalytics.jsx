@@ -85,8 +85,8 @@ export default function MLAnalytics({ fleet = [], onPick }) {
       p = Math.max(8.0, Math.min(95.0, Math.round(p * 10) / 10));
 
       let level = "Низкий";
-      if (p >= 50.0) level = "Высокий";
-      else if (p >= 24.0) level = "Умеренный";
+      if (p >= 55.0) level = "Высокий";
+      else if (p >= 28.0) level = "Умеренный";
 
       let displayFactor = origFactor;
       if (applied.length > 0) {
@@ -219,10 +219,11 @@ export default function MLAnalytics({ fleet = [], onPick }) {
 
   return (
     <>
+      <p style={{color:"var(--muted)", marginBottom:20}}>Оценка риска требует проверки на реальном парке. Сценарии модернизации ниже иллюстрируют допущения и не являются повторным прогнозом ML-модели. Стоимость и трудозатраты оценочные.</p>
       {/* ВЕРХНЯЯ СВОДКА С КНОПКОЙ ДОРОЖНОЙ КАРТЫ */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
         <div style={{ fontSize: "14px", color: "var(--muted)" }}>
-          Предиктивная аналитика сбоев парка АРМ на базе обученного ансамбля моделей
+          {data?.inference_mode === "model" ? "ML-модель: оценка на основе синтетических обучающих данных" : "Резервная эвристика: обученная модель недоступна"}
         </div>
         <button
           className="on"

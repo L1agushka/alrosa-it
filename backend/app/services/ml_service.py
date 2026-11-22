@@ -41,7 +41,9 @@ class MLRiskService:
         rows = []
         for ws in workstations:
             dept = ws.department.name if hasattr(ws.department, "name") else (ws.department or "Прочее")
-            installed = getattr(ws, "software", None) or getattr(ws, "installed_software", None) or []
+            installed = getattr(ws, "installed_software", None)
+            if installed is None:
+                installed = getattr(ws, "software", None) or []
             installed_count = len(installed)
 
             sw_names = " ".join([
@@ -87,6 +89,7 @@ class MLRiskService:
         ]
 
         probas = None
+        inference_mode = "heuristic"
         if self.model is not None:
             try:
                 cols = list(getattr(self.model, "feature_names_in_", feature_cols))
@@ -94,6 +97,7 @@ class MLRiskService:
                     if c not in df.columns:
                         df[c] = 0
                 probas = self.model.predict_proba(df[cols])[:, 1]
+                inference_mode = "model"
             except Exception as e:
                 print(f"[MLService] Инференс через модель скорректирован: {e}")
 
@@ -159,7 +163,9 @@ class MLRiskService:
         total = len(items)
         return {
             "available": True,
-            "metrics": self.meta.get("metrics", {"roc_auc": 0.907, "f1_score": 0.772, "accuracy": 0.836}),
+            "inference_mode": inference_mode,
+            "metrics": self.meta.get("metrics", {}) if inference_mode == "model" else {},
+            "data_notice": "Модель обучена на синтетических данных. Результат требует проверки на реальном парке.",
             "summary": {
                 "total_analyzed": total,
                 "high_risk_count": high_risk_count,
@@ -167,14 +173,7 @@ class MLRiskService:
                 "low_risk_count": low_risk_count,
                 "fleet_risk_index": round(float(probas.mean() * 100), 1) if total else 0
             },
-            "feature_importances": self.meta.get("feature_importances", [
-                {"feature": "ПО без нативного Linux-бинарника", "weight_pct": 18.0},
-                {"feature": "Объем оперативной памяти (ОЗУ)", "weight_pct": 17.6},
-                {"feature": "СКЗИ и токены ЭЦП (КриптоПро / Рутокен)", "weight_pct": 15.4},
-                {"feature": "Количество внешней периферии", "weight_pct": 10.3},
-                {"feature": "Специфика подразделения компании", "weight_pct": 7.9},
-                {"feature": "Локальные толстые клиенты 1С", "weight_pct": 7.5}
-            ]),
+            "feature_importances": self.meta.get("feature_importances", []) if inference_mode == "model" else [],
             "workstations": items
         }
 

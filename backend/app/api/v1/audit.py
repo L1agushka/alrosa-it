@@ -27,7 +27,9 @@ async def upload_audit_file(
     current: Annotated[User, Depends(require_analyst)] = None,
     db: Session = Depends(get_db),
 ):
-    contents = await file.read()
+    contents = await file.read(10 * 1024 * 1024 + 1)
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Лимит файла аудита: 10 МиБ")
     try:
         report = process_audit_file(
             file_bytes=contents,

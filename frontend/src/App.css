@@ -258,7 +258,7 @@ tr:hover .chev { transform: translateX(5px); color: var(--ice); }
 
 
 .tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-select.search { width: auto; }
+select.search { width: auto; color: var(--text); color-scheme: dark; }
 .ghost-btn { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); font-size: 14px; cursor: pointer; transition: border-color .2s, transform .2s var(--ease); }
 .ghost-btn:hover { border-color: var(--ice); transform: translateY(-2px); }
 .error { margin-bottom: 14px; padding: 12px 14px; border-radius: 10px; color: var(--bad); background: rgba(255,107,122,.1); }

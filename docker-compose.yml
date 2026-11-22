@@ -25,11 +25,14 @@ services:
     container_name: alrosa_audit_backend
     environment:
       DATABASE_URL: postgresql+psycopg://audit_user:audit_password@db:5432/alrosa_audit
-    volumes:
-      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     # 8000 открыт только на localhost для режима npm run dev (прокси Vite)
     ports:
       - "127.0.0.1:8000:8000"
@@ -46,7 +49,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - internal_net
 

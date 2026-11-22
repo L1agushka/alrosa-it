@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, ForeignKey, UniqueConstraint, Table
+    Column, Integer, String, ForeignKey, UniqueConstraint, Table, JSON
 )
 from sqlalchemy.orm import relationship
 from ..core.database import Base
@@ -37,6 +37,8 @@ class Workstation(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    installed_software = Column(JSON, nullable=True)
+
     software = relationship(
         "Software",
         secondary=workstation_software,

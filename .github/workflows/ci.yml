@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "master", "feature/**" ]
+    branches: [ "main", "master", "feature/**", "codex/**" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -55,6 +55,11 @@ jobs:
           DATABASE_URL: postgresql+psycopg://audit_user:audit_password@localhost:5432/alrosa_audit
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
+          cd backend
+          alembic upgrade head
+          alembic downgrade 9bfaee8f887e
+          alembic upgrade head
+          cd ..
           pytest --cov=app --cov-report=term-missing backend/tests/
 
   # -----------------------------------------------------------
@@ -77,11 +82,11 @@ jobs:
 
       - name: Install npm dependencies
         working-directory: ./frontend
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Compile production bundle
         working-directory: ./frontend
-        run: npm run build
+        run: npm test && npm run build
 
   # -----------------------------------------------------------
   # 3. Валидация сборки Docker Compose
@@ -101,3 +106,18 @@ jobs:
       - name: Build containers via Docker Compose
         run: |
           docker compose build --parallel
+
+      - name: Start services and verify readiness
+        run: |
+          docker compose up -d --wait --wait-timeout 120
+          curl --fail --retry 10 --retry-delay 2 --retry-connrefused http://localhost/ready
+          docker compose cp scripts backend:/app/scripts
+          docker compose exec -T backend python scripts/demo.py --base-url http://localhost:8000
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --tail 150
+
+      - name: Stop test services
+        if: always()
+        run: docker compose down

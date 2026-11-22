@@ -128,7 +128,7 @@ const PRESETS = [
 ];
 
 // 🆕 Добавляем canEdit в пропсы
-export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
+export default function RulesAndNLPTab({ onRulesChanged, canEdit = false, group }) {
   const [testInput, setTestInput] = useState("gemeni");
   const [nlpResult, setNlpResult] = useState(null);
   const [nlpLoading, setNlpLoading] = useState(false);
@@ -147,7 +147,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
   const fileRef = useRef(null);
 
   const loadRules = () => {
-    apiFetch("/api/v1/policy/custom-rules")
+    apiFetch("/api/v1/policy/custom-rules?group=" + encodeURIComponent(group))
         .then((r) => (r.ok ? r.json() : []))
         .then((data) => {
           setRules(data || []);
@@ -168,7 +168,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
     setForceOverride(false);
     setShowWarningModal(false);
 
-    apiFetch("/api/v1/policy/nlp-match", {
+    apiFetch("/api/v1/policy/nlp-match?group=" + encodeURIComponent(group), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, candidate_desc: candidateDesc })
@@ -206,7 +206,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
 
     setBusy(true);
     setError("");
-    apiFetch("/api/v1/policy/custom-rules", {
+    apiFetch("/api/v1/policy/custom-rules?group=" + encodeURIComponent(group), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -215,7 +215,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
         category: catLabel,
         status: customStatus,
         alternative: customAlt || "Определено администратором",
-        note: forceOverride && !nlpResult.is_software
+        note: forceOverride && nlpResult.is_software === false
             ? "⚠️ Manual Override: Добавлено принудительно в обход классификатора ПО"
             : catPolicy,
         weight: 50,
@@ -239,7 +239,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
     if (!canEdit) return;
     if (!confirm("Удалить правило?")) return;
     setBusy(true);
-    apiFetch(`/api/v1/policy/custom-rules/${id}`, { method: "DELETE" })
+    apiFetch(`/api/v1/policy/custom-rules/${id}?group=${encodeURIComponent(group)}`, { method: "DELETE" })
         .then(() => loadRules())
         .catch((e) => setError(e.message))
         .finally(() => setBusy(false));
@@ -252,7 +252,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await apiFetch("/api/v1/policy/custom-rules/upload", {
+      const res = await apiFetch("/api/v1/policy/custom-rules/upload?group=" + encodeURIComponent(group), {
         method: "POST",
         body: fd,
       });
@@ -275,7 +275,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
   };
 
   const exportJson = async () => {
-    const res = await apiFetch("/api/v1/policy/custom-rules/export");
+    const res = await apiFetch("/api/v1/policy/custom-rules/export?group=" + encodeURIComponent(group));
     if (!res.ok) return;
     const data = await res.json();
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -376,10 +376,10 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
                 <div style={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "8px", padding: "16px 20px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                     <span style={{ fontSize: "12px", color: "var(--ice)", fontWeight: "600" }}>{nlpResult.method}</span>
-                    {nlpResult.is_software && (
+                    {nlpResult.is_software && nlpResult.method?.includes("RapidFuzz") && (
                         <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)", background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px" }}>
-                      cos(θ) = {nlpResult.cosine_similarity}
+                      Сходство названий: {nlpResult.cosine_similarity}
                     </span>
                           <span className="status ready" style={{ fontSize: "12px" }}>
                       {nlpResult.confidence_pct}%
@@ -396,7 +396,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
                     {nlpResult.summary}
                   </p>
 
-                  {!nlpResult.is_software && !forceOverride ? (
+                  {nlpResult.is_software === false && !forceOverride ? (
                       <div style={{
                         background: "rgba(239, 68, 68, 0.08)",
                         border: "1px solid rgba(239, 68, 68, 0.25)",
@@ -445,7 +445,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
                       </div>
                   ) : (
                       <div style={{ background: "rgba(0,0,0,0.2)", padding: "14px", borderRadius: "6px", border: "1px solid var(--line)", display: "grid", gap: "12px" }}>
-                        {forceOverride && !nlpResult.is_software && (
+                        {forceOverride && nlpResult.is_software === false && (
                             <div style={{
                               padding: "8px 12px",
                               background: "rgba(245, 158, 11, 0.12)",
@@ -554,7 +554,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
 
                   {isSavedBanner && (
                       <div style={{ marginTop: "10px", padding: "8px 12px", background: "rgba(34, 197, 94, 0.15)", border: "1px solid var(--ok)", borderRadius: "6px", color: "var(--ok)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span>✔</span> <strong>Успешно сохранено!</strong> Статус применён к алгоритму скоринга и затронет все ПК с этим ПО.
+                        <span>✔</span> <strong>Успешно сохранено!</strong> Статус применён к алгоритму скоринга и затронет ПК выбранной группы с этим ПО.
                       </div>
                   )}
                 </div>
@@ -589,7 +589,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
                     Вы собираетесь принудительно зафиксировать сущность <strong>«{nlpResult?.normalized_name}»</strong>, которую классификатор идентифицировал как <strong>не относящуюся к цифровому ПО</strong>.
                   </p>
                   <div style={{ padding: "10px 12px", background: "rgba(239, 68, 68, 0.1)", borderRadius: "6px", borderLeft: "3px solid #ef4444", color: "var(--text)" }}>
-                    В таком случае целевые ПК будут <strong>отключены от глобальной системы автоматической регистрации софта АЛРОСА</strong>, а правило получит флаг ручной изоляции (Manual Override).
+                    В таком случае целевые ПК будут <strong>проверены по вручную добавленному правилу выбранной группы</strong>, а правило получит флаг ручной изоляции (Manual Override).
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px" }}>
@@ -619,7 +619,7 @@ export default function RulesAndNLPTab({ onRulesChanged, canEdit = false }) {
                     <button key={p.label} className="ghost-btn" disabled={busy}
                             onClick={() => {
                               setBusy(true);
-                              apiFetch("/api/v1/policy/custom-rules", {
+                              apiFetch("/api/v1/policy/custom-rules?group=" + encodeURIComponent(group), {
                                 method: "POST", headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify(p.payload)
                               })

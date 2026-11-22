@@ -1,9 +1,9 @@
 from fastapi.testclient import TestClient
 from app.main import app
 
-client = TestClient(app)
 
-def test_get_os_profiles():
+
+def test_get_os_profiles(client):
     """Проверка получения списка поддерживаемых ОС"""
     res = client.get("/api/v1/catalog/os")
     assert res.status_code == 200
@@ -13,7 +13,7 @@ def test_get_os_profiles():
     names = [p["name"] for p in profiles]
     assert "Astra Linux Special Edition 1.7" in names
 
-def test_get_software_categories_stats():
+def test_get_software_categories_stats(client):
     """Проверка каталога ПО"""
     res = client.get("/api/v1/catalog/software")
     assert res.status_code == 200
@@ -23,7 +23,7 @@ def test_get_software_categories_stats():
     assert "name" in data[0]
     assert "category" in data[0]
 
-def test_get_blockers_stats():
+def test_get_blockers_stats(client):
     """Проверка эндпоинта выгрузки блокеров для сессии"""
     csv_data = (
         "workstation_id,department,user_fullname,ram_gb,cpu_cores,disk_gb,installed_software\n"
@@ -43,7 +43,7 @@ def test_get_blockers_stats():
     assert data["total_blockers"] > 0
     assert isinstance(data["top_software"], list)
 
-def test_audit_history():
+def test_audit_history(client):
     """Проверка получения истории аудитов"""
     res = client.get("/api/v1/audit/history")
     assert res.status_code == 200

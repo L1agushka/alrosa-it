@@ -1,10 +1,10 @@
 """
 Скоринг готовности АРМ к переходу на отечественное ПО.
 
-Логика волн (с весами):
-  wave 1 / ready             — сумма весов warning-критериев < порога, нет blocker
-  wave 2 / upgrade_required  — сумма весов >= порога, но нет blocker
-  wave 3 / blocked           — есть хотя бы один blocker-критерий
+Политика выбирается по department. Локальное правило ПО приоритетнее каталога.
+Волна 3: блокер ПО или аппаратный критерий с весом >= 50.
+Волна 2: прочие проблемы, требующие действий. Волна 1: проблем нет.
+Вес влияет на приоритет проблем, но нулевой вес не отменяет несовместимость.
 """
 from typing import Any, Dict, List
 
@@ -18,7 +18,6 @@ from ..models import (
     AssessmentStatus,
     BlockerSeverity,
     CompatibilityRule,
-    CriteriaWeight,
     OperatingSystem,
     Software,
     Workstation,
@@ -27,8 +26,6 @@ from ..models import (
 from .parser import parse_audit_file, ParserError
 
 
-# Порог суммы весов для перехода в волну 2
-WAVE_2_SCORE_THRESHOLD = 30
 
 
 # ───────────────────────────────────────────────────────────
@@ -76,12 +73,6 @@ def _load_software_map(db: Session) -> Dict[str, Software]:
     return {s.name.lower(): s for s in db.query(Software).all()}
 
 
-def _load_criteria_map(db: Session) -> Dict[str, CriteriaWeight]:
-    """Возвращает словарь {code: CriteriaWeight} только активных критериев."""
-    rows = db.query(CriteriaWeight).filter_by(is_active=True).all()
-    return {c.code: c for c in rows}
-
-
 # ───────────────────────────────────────────────────────────
 # Скоринг одной строки
 # ───────────────────────────────────────────────────────────
@@ -89,96 +80,79 @@ def _score_workstation(
     row: pd.Series,
     target_os: OperatingSystem,
     compat_map: Dict[str, CompatibilityRule],
-    criteria: Dict[str, CriteriaWeight],
+    settings: dict | None = None,
+    custom_rules: list | None = None,
 ) -> Dict[str, Any]:
-    ws_ext_id = _to_str(row.get("workstation_id"), "Unknown")
-    department = _to_str(row.get("department"), "Общий")
-    user_fullname = _to_str(row.get("user_fullname")) or None
-    current_os = _to_str(row.get("current_os")) or None
-    ram = _to_int(row.get("ram_gb"))
-    cpu = _to_int(row.get("cpu_cores"))
-    disk = _to_int(row.get("disk_gb"))
-
+    from ..schemas.group_policy import PolicySettings
+    config = PolicySettings().model_dump()
+    if settings:
+        config.update(settings)
+    weights = config["weights"]
+    ram, cpu, disk = (_to_int(row.get(k)) for k in ("ram_gb", "cpu_cores", "disk_gb"))
     software_names = _split_software(_to_str(row.get("installed_software")))
+    hardware_issues, blockers = [], []
+    score, critical, needs_action = 0, False, False
 
-    hardware_issues: List[str] = []
-    blockers: List[Dict[str, Any]] = []
-    score = 0
+    for code, value, key, minimum, label in [
+        ("ram", ram, "minRam", target_os.min_ram_gb, "ОЗУ"),
+        ("cpu", cpu, "minCores", target_os.min_cpu_cores, "CPU"),
+        ("disk", disk, "minDisk", target_os.min_disk_gb, "Диск"),
+    ]:
+        # A department may raise the OS minimum, never silently lower it.
+        required = max(minimum, config.get(key) or minimum)
+        if value < required:
+            hardware_issues.append(f"{label}: {value} (требуется {required})")
+            score += weights[code]
+            critical = critical or weights[code] >= 50
+            needs_action = True
 
-    # ─────────── 1. Проверка железа (warning) ───────────
-    if ram < target_os.min_ram_gb:
-        hardware_issues.append(
-            f"Недостаточно ОЗУ: {ram} ГБ (требуется {target_os.min_ram_gb} ГБ)"
-        )
-        if "ram" in criteria:
-            score += criteria["ram"].weight
-
-    if cpu < target_os.min_cpu_cores:
-        hardware_issues.append(
-            f"Слабый CPU: {cpu} ядер (требуется {target_os.min_cpu_cores})"
-        )
-        if "cpu" in criteria:
-            score += criteria["cpu"].weight
-
-    if disk < target_os.min_disk_gb:
-        hardware_issues.append(
-            f"Мало диска: {disk} ГБ (требуется {target_os.min_disk_gb} ГБ)"
-        )
-        if "disk" in criteria:
-            score += criteria["disk"].weight
-
-    # ─────────── 2. Проверка софта ───────────
-    compat_map_lower = {k.lower(): v for k, v in compat_map.items()}
-    has_software_blocker = False
-
+    compat_lower = {k.lower(): v for k, v in compat_map.items()}
+    unknown = 0
     for sw_name in software_names:
-        rule = compat_map_lower.get(sw_name.lower())
-        if not rule:
-            # Программа неизвестна — добавляем info-вес (не влияет на волну)
-            if "unknown_software" in criteria and criteria["unknown_software"].severity == "info":
-                score += criteria["unknown_software"].weight
+        # Most specific local rule wins, including explicit approved exceptions.
+        matches = [r for r in (custom_rules or []) if r.get("pattern") and
+                   r["pattern"].lower() in sw_name.lower()]
+        local = max(matches, key=lambda r: len(r["pattern"])) if matches else None
+        if local:
+            status = local["status"]
+            if status == "native_ready":
+                continue
+            score += local["weight"]
+            if status == "blocker":
+                critical = True
+            needs_action = True
+            blockers.append({"software_name": sw_name, "analog_name": local["alternative"],
+                             "comment": local["note"], "severity": "blocker" if status == "blocker" else "warning"})
             continue
+        rule = compat_lower.get(sw_name.lower())
+        if rule is None:
+            unknown += 1
+        elif rule.is_blocker:
+            critical = True
+            score += weights["blocker_software"]
+            blockers.append({"software_name": sw_name, "analog_name": rule.analog_name,
+                             "comment": rule.comment, "severity": "blocker"})
 
-        if rule.is_blocker:
-            has_software_blocker = True
-            blockers.append(
-                {
-                    "software_name": sw_name,
-                    "analog_name": rule.analog_name,
-                    "comment": rule.comment,
-                    "severity": "blocker",
-                }
-            )
-            if "blocker_software" in criteria:
-                score += criteria["blocker_software"].weight
+    gap = int(unknown / len(software_names) * 100 + 0.5) if software_names else 0
+    if gap > config["maxGap"]:
+        score += weights["unknown_software"]
+        needs_action = True
+        critical = critical or weights["unknown_software"] >= 50
+        hardware_issues.append(f"ПО требует проверки: {unknown} программ ({gap}%)")
 
-    # ─────────── 3. Определение статуса и волны ───────────
-    # blocker_software.severity всегда blocker → любое срабатывание = волна 3
-    if has_software_blocker:
-        status = AssessmentStatus.blocked
-        wave = 3
-    elif score >= WAVE_2_SCORE_THRESHOLD:
-        status = AssessmentStatus.upgrade_required
-        wave = 2
-    else:
-        status = AssessmentStatus.ready
-        wave = 1
-
+    status = (AssessmentStatus.blocked if critical else
+              AssessmentStatus.upgrade_required if needs_action else AssessmentStatus.ready)
     return {
-        "workstation_ext_id": ws_ext_id,
-        "department": department,
-        "user_fullname": user_fullname,
-        "current_os": current_os,
-        "cpu_cores": cpu,
-        "ram_gb": ram,
-        "disk_gb": disk,
-        "installed_software": software_names,
-        "hardware_issues": hardware_issues,
-        "blockers": blockers,
-        "status": status,
-        "wave": wave,
-        "score": float(score),
+        "workstation_ext_id": _to_str(row.get("workstation_id"), "Unknown"),
+        "department": _to_str(row.get("department")) or "Общий",
+        "user_fullname": _to_str(row.get("user_fullname")) or None,
+        "current_os": _to_str(row.get("current_os")) or None,
+        "cpu_cores": cpu, "ram_gb": ram, "disk_gb": disk,
+        "installed_software": software_names, "hardware_issues": hardware_issues,
+        "blockers": blockers, "status": status,
+        "wave": 3 if critical else 2 if needs_action else 1, "score": float(score),
     }
+
 
 
 # ───────────────────────────────────────────────────────────
@@ -208,7 +182,9 @@ def process_audit_file(
     # 3. Справочники
     compat_map = _load_compatibility_map(db, target_os.id)
     software_map = _load_software_map(db)
-    criteria = _load_criteria_map(db)
+    from .group_policy import get_policy
+    policies = {str(name).strip() or "Общий": get_policy(db, str(name).strip() or "Общий")
+                for name in df["department"].fillna("Общий").unique()}
 
     # 4. Создаём AuditSession
     audit_session = AuditSession(
@@ -231,7 +207,9 @@ def process_audit_file(
     results: List[Dict[str, Any]] = []
 
     for _, row in df.iterrows():
-        scored = _score_workstation(row, target_os, compat_map, criteria)
+        group = _to_str(row.get("department")) or "Общий"
+        policy = policies[group]
+        scored = _score_workstation(row, target_os, compat_map, policy.settings, policy.rules)
 
         # 5.1. Workstation
         workstation = Workstation(
@@ -243,6 +221,7 @@ def process_audit_file(
             cpu_cores=scored["cpu_cores"],
             ram_gb=scored["ram_gb"],
             disk_gb=scored["disk_gb"],
+            installed_software=scored["installed_software"],
         )
         db.add(workstation)
         db.flush()
@@ -304,6 +283,7 @@ def process_audit_file(
                 "wave": scored["wave"],
                 "score": scored["score"],
                 "hardware_issues": scored["hardware_issues"],
+                "installed_software": scored["installed_software"],
                 "blocking_software": [
                     f"{b['software_name']} → {b.get('analog_name') or 'нет аналога'}"
                     for b in scored["blockers"]

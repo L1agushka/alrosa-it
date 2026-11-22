@@ -108,23 +108,22 @@ def get_blockers_stats(
     db: Session = Depends(get_db),
 ):
     session = _resolve_session(db, session_id)
+    name = func.coalesce(Software.name, AssessmentBlocker.message)
     rows = (
-        db.query(AssessmentBlocker.software_id, func.count(AssessmentBlocker.id))
+        db.query(name, func.count(AssessmentBlocker.id))
         .join(Assessment, AssessmentBlocker.assessment_id == Assessment.id)
         .join(Workstation, Assessment.workstation_id == Workstation.id)
+        .outerjoin(Software, AssessmentBlocker.software_id == Software.id)
         .filter(Workstation.audit_session_id == session.id)
-        .filter(AssessmentBlocker.software_id.isnot(None))
-        .group_by(AssessmentBlocker.software_id)
-        .order_by(func.count(AssessmentBlocker.id).desc())
-        .limit(limit)
+        .group_by(name)
         .all()
     )
-    software_ids = [sw_id for sw_id, _ in rows]
-    names_map: dict[int, str] = {}
-    if software_ids:
-        sw_rows = db.query(Software.id, Software.name).filter(Software.id.in_(software_ids)).all()
-        names_map = {sid: name for sid, name in sw_rows}
-    top = [CountByKey(key=names_map.get(sw_id, f"id={sw_id}"), count=cnt) for sw_id, cnt in rows]
+    counts = {}
+    for label, count in rows:
+        label = label.split(" → ")[0]
+        counts[label] = counts.get(label, 0) + count
+    top = [CountByKey(key=label, count=count)
+           for label, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]]
     total = (
         db.query(func.count(AssessmentBlocker.id))
         .join(Assessment, AssessmentBlocker.assessment_id == Assessment.id)

@@ -268,7 +268,7 @@ class QwenEnterpriseClassifier:
                     return json.loads(body.get("message", {}).get("content", "{}"))
         except Exception as e:
             print(f"[AI Discovery Error] {e}")
-        return {}
+        return {"available": False}
 
     def match(self, raw_input: str, candidate_desc: str = None, custom_rules: list = None) -> dict:
         if not raw_input or not raw_input.strip():
@@ -359,6 +359,13 @@ class QwenEnterpriseClassifier:
 
         # 2. AI Discovery: чистое решение нейросети (без регулярок)
         ai_res = self.query_qwen_discovery(cleaned)
+        if ai_res.get("available") is False:
+            return {"matched": False, "is_software": None, "raw_input": raw,
+                    "normalized_name": raw, "category": "Специализированное отраслевое ПО",
+                    "status": "manual_check", "domestic_alt": "Проверка поставщика",
+                    "policy": "Требуется ручная проверка", "method": "Ручная проверка: LLM недоступна",
+                    "summary": "Локальная LLM недоступна. Тип объекта не определён. Можно создать правило вручную.",
+                    "candidates": []}
         is_sw = bool(ai_res.get("is_software", False))
         raw_cat = ai_res.get("category", "other_software")
         canon_name = ai_res.get("canonical_name") or raw

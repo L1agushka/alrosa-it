@@ -36,6 +36,7 @@ class WorkstationRead(ORMModel):
     cpu_cores: int
     ram_gb: int
     disk_gb: int
+    installed_software: list[str] | None = None
     assessment: AssessmentRead | None = None
 
 
@@ -57,10 +58,12 @@ class AuditSessionListItem(ORMModel):
 
 
 class AuditSessionRead(AuditSessionListItem):
+    target_os_name: str
     workstations: list[WorkstationRead] = Field(default_factory=list)
 
 
 class AuditUploadResponse(BaseModel):
+    workstations: list[dict] = Field(default_factory=list)
     id: int
     filename: str
     target_os: str

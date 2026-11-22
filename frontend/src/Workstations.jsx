@@ -31,8 +31,8 @@ function Card({ w, c, i, onPick }) {
       </div>
       <div className="wc-user"><strong>{w.user}</strong><span>{w.department}</span></div>
       <div className="wc-body">
-        <Seg label="ОЗУ" value={`${w.ram} ГБ`} on={Math.min(8, w.ram / 4)} need={Math.min(8, c.minRam / 4)} />
-        <Seg label="Ядра" value={w.cores} on={Math.min(8, w.cores)} need={Math.min(8, c.minCores)} />
+        <Seg label="ОЗУ" value={`${w.ram} ГБ`} on={Math.min(8, w.ram / 4)} need={Math.min(8, (w.criteria || c).minRam / 4)} />
+        <Seg label="Ядра" value={w.cores} on={Math.min(8, w.cores)} need={Math.min(8, (w.criteria || c).minCores)} />
         <div className="ticks-row">
           <span>ПО <b>{w.compatible}/{w.programs}</b></span>
           <div className="ticks">{Array.from({ length: ticks }, (_, k) => <i key={k} className={k < good ? "ok" : "miss"} />)}</div>
@@ -40,7 +40,7 @@ function Card({ w, c, i, onPick }) {
       </div>
       <div className="wc-foot">
         <span className="wc-wave">{w.wave === "—" ? "Без волны" : w.wave}</span>
-        {w.blockers.map((b) => <em key={b.type}>{b.type}</em>)}
+        {w.blockers.map((b, index) => <em key={b.type + index}>{b.type}</em>)}
       </div>
     </button>
   );
@@ -83,7 +83,7 @@ export default function Workstations({ rows, c, onPick, onUpload, error, canEdit
         </select>
           {canEdit && (
               <div className="ws-files">
-                  <label className="ghost-btn">Загрузить CSV<input type="file" accept=".csv" hidden onChange={onUpload} /></label>
+                  <label className="ghost-btn">Загрузить CSV / XLSX<input type="file" accept=".csv,.xlsx" hidden onChange={onUpload} /></label>
                   <button className="ghost-btn" onClick={() => download("shablon.csv", template)}>Шаблон</button>
               </div>
           )}

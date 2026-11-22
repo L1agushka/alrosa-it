@@ -17,7 +17,7 @@ def db_session():
 def test_scoring_wave_1_ready(db_session):
     csv_data = (
         "workstation_id,department,user_fullname,ram_gb,cpu_cores,disk_gb,installed_software\n"
-        "WS-TEST-01,Бухгалтерия,Иванов И.И.,16,4,256,Яндекс Браузер; Telegram\n"
+        "WS-TEST-01,Бухгалтерия,Иванов И.И.,16,4,256,Яндекс Браузер; Telegram Desktop\n"
     ).encode("utf-8")
 
     result = process_audit_file(csv_data, "test_fixture_1.csv", "Astra Linux Special Edition 1.7", db_session)

@@ -23,3 +23,7 @@ class AuditSession(Base):
         back_populates="audit_session",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def target_os_name(self):
+        return self.target_os.name

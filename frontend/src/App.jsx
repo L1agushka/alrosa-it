@@ -32,12 +32,14 @@ const statuses = ["Готов", "Частично", "Не готов"];
    Критерии: пороги (из ОС) + веса (из CriteriaWeight)
    ───────────────────────────────────────────── */
 function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit, onSave }) {
+    const selectedOs = osProfiles.find(p => p.name === targetOs);
+    const osMinimums = {minRam:selectedOs?.min_ram_gb, minCores:selectedOs?.min_cpu_cores, minDisk:selectedOs?.min_disk_gb};
     const thresholdRow = (key, label, min, max, step) => (
         <label className="slider" key={key}>
             <span>{label}<strong>{c[key]}</strong></span>
             <input
                 type="range"
-                min={min} max={max} step={step}
+                min={Math.max(min, osMinimums[key] || 0)} max={Math.max(max, c[key])} step={step}
                 value={c[key]}
                 disabled={!canEdit}
                 onChange={(e) => set({ ...c, [key]: +e.target.value })}
@@ -119,7 +121,7 @@ function Criteria({ c, set, osProfiles = [], targetOs, setTargetOs, canEdit, onS
                     onClick={onSave}
                     disabled={!canEdit}
                 >
-                    Сохранить веса на сервер
+                    Сохранить политику группы
                 </button>
             )}
         </div>
@@ -192,7 +194,7 @@ const mapServerWorkstations = (workstations) => {
         const swBlockersRaw = assess.blockers || ws.blocking_software || [];
         const swBlockers = swBlockersRaw.map((s) =>
             typeof s === "object"
-                ? (s.software_name || s.name || s.reason || "Несовместимое ПО")
+                ? (s.software_name || s.name || s.message || s.reason || "Несовместимое ПО")
                 : s
         );
 
@@ -209,9 +211,9 @@ const mapServerWorkstations = (workstations) => {
                     ? (ws.department?.name || "—")
                     : (ws.department || "—"),
             os: ws.current_os || "Windows",
-            ram: Number(ws.ram_gb) || 8,
-            cores: Number(ws.cpu_cores) || 4,
-            disk: Number(ws.disk_gb) || 256,
+            ram: Number(ws.ram_gb) || 0,
+            cores: Number(ws.cpu_cores) || 0,
+            disk: Number(ws.disk_gb) || 0,
             programs: installed.length || 4,
             compatible: Math.max(0, (installed.length || 4) - swBlockers.length),
             blockingSoftware: swBlockers,
@@ -237,7 +239,10 @@ function App() {
     const [currentSessionId, setCurrentSessionId] = useState(null);
 
     // Стейт для кастомных правил
-    const [customRules, setCustomRules] = useState([]);
+    const [policies, setPolicies] = useState([]);
+    const [group, setGroup] = useState("Общий");
+    const [policyMessage, setPolicyMessage] = useState("");
+    const [newGroup, setNewGroup] = useState("");
 
     const [c, setC] = useState(defaultCriteria);
     const [targetOs, setTargetOs] = useState("Astra Linux Special Edition 1.7");
@@ -260,22 +265,6 @@ function App() {
             .then((u) => setMe(u))
             .catch(() => {});
 
-        // 2) Веса критериев
-        apiFetch("/api/v1/criteria/weights")
-            .then((r) => (r.ok ? r.json() : []))
-            .then((data) => {
-                const w = {};
-                (data || []).forEach((x) => { w[x.code] = x.weight; });
-                setC((prev) => ({ ...prev, weights: { ...prev.weights, ...w } }));
-            })
-            .catch((err) => console.warn("weights:", err));
-
-        // 3) Кастомные правила по ПО
-        apiFetch("/api/v1/policy/custom-rules")
-            .then((r) => (r.ok ? r.json() : []))
-            .then((rules) => setCustomRules(rules || []))
-            .catch((err) => console.warn("custom rules:", err));
-
         // 4) ОС + последний аудит
         Promise.all([
             apiFetch("/api/v1/catalog/os").then((r) => (r.ok ? r.json() : [])),
@@ -284,7 +273,7 @@ function App() {
             .then(([profiles, latest]) => {
                 setOsProfiles(profiles || []);
 
-                const desired = latest?.target_os || profiles?.[0]?.name;
+                const desired = latest?.target_os_name || profiles?.[0]?.name;
                 const p =
                     (profiles || []).find((x) => x.name === desired) ||
                     (profiles || [])[0];
@@ -364,11 +353,71 @@ function App() {
         });
     }, [rawCompat, targetOs]);
 
-    /* ─────────── ГЛАВНОЕ: пересчёт на фронте ─────────── */
-    const rows = useMemo(
-        () => fleet.map((w) => evaluate(w, c, customRules)),
-        [fleet, c, customRules]
+    const loadPolicies = async () => {
+        const response = await apiFetch("/api/v1/criteria/groups");
+        if (!response.ok) throw new Error("Не удалось загрузить политики групп");
+        setPolicies(await response.json());
+    };
+    useEffect(() => {
+        if (token) loadPolicies().catch(e => setError(e.message));
+    }, [token, fleet]);
+
+    useEffect(() => {
+        const settings = policies.find(p => p.group_name === group)?.settings || {};
+        const os = osProfiles.find(p => p.name === targetOs);
+        setC({
+            ...defaultCriteria, ...settings,
+            minRam: Math.max(os?.min_ram_gb || 0, settings.minRam ?? os?.min_ram_gb ?? 4),
+            minCores: Math.max(os?.min_cpu_cores || 0, settings.minCores ?? os?.min_cpu_cores ?? 2),
+            minDisk: Math.max(os?.min_disk_gb || 0, settings.minDisk ?? os?.min_disk_gb ?? 30),
+        });
+        setPolicyMessage("");
+    }, [group, policies, targetOs, osProfiles]);
+
+    const canEdit = me?.role === "admin" || me?.role === "analyst";
+    const groupSelector = (
+        <div className="panel" style={{marginBottom: 20}}>
+            <label>Группа рабочих мест
+                <select className="search" value={group} onChange={e => setGroup(e.target.value)} style={{marginLeft: 16}}>
+                    {policies.map(p => <option key={p.group_name}>{p.group_name}</option>)}
+                </select>
+            </label>
+            {canEdit && <div style={{display:"flex", gap:12, marginTop:12}}>
+                <input className="search" aria-label="Новая группа" placeholder="Название новой группы" value={newGroup} onChange={e => setNewGroup(e.target.value)} maxLength={255} />
+                <button className="ghost-btn" onClick={async () => {
+                    const name = newGroup.trim();
+                    if (!name) return;
+                    if (policies.some(p => p.group_name === name)) { setGroup(name); setNewGroup(""); return; }
+                    try {
+                        const res = await apiFetch("/api/v1/criteria/groups/" + encodeURIComponent(name), {
+                            method:"PUT", headers:{"Content-Type":"application/json"},
+                            body:JSON.stringify({...defaultCriteria, minRam:null, minCores:null, minDisk:null})
+                        });
+                        if (!res.ok) throw new Error("Не удалось создать группу");
+                        await loadPolicies(); setGroup(name); setNewGroup("");
+                    } catch (e) { setError(e.message); }
+                }}>Создать группу</button>
+            </div>}
+            <p>Политика применяется только к строкам с этим значением department. У каждой группы свои пороги, веса и правила ПО.</p>
+            {policyMessage && <p role="status">{policyMessage}</p>}
+        </div>
     );
+    const rows = useMemo(() => fleet.map(w => {
+        const policy = policies.find(p => p.group_name === w.department);
+        const settings = policy?.settings || defaultCriteria;
+        const os = osProfiles.find(p => p.name === targetOs);
+        const config = w.department === group ? c : {
+            ...defaultCriteria, ...settings,
+            minRam: Math.max(os?.min_ram_gb || 0, settings.minRam ?? os?.min_ram_gb ?? 4),
+            minCores: Math.max(os?.min_cpu_cores || 0, settings.minCores ?? os?.min_cpu_cores ?? 2),
+            minDisk: Math.max(os?.min_disk_gb || 0, settings.minDisk ?? os?.min_disk_gb ?? 30),
+        };
+        return evaluate(w, {...config,
+            minRam:Math.max(os?.min_ram_gb || 0, config.minRam),
+            minCores:Math.max(os?.min_cpu_cores || 0, config.minCores),
+            minDisk:Math.max(os?.min_disk_gb || 0, config.minDisk),
+        }, policy?.rules || [], rawCompat.filter(r => r.target_os_name === targetOs));
+    }), [fleet, c, policies, group, rawCompat, targetOs, osProfiles]);
 
     const n = (s) => rows.filter((r) => r.status === s).length;
     const ready = n("Готов");
@@ -429,31 +478,15 @@ function App() {
 
     /* ─────────── сохранение весов на сервер ─────────── */
     const saveCriteria = async () => {
-        if (!c.weights) return;
-        const severities = {
-            ram: "warning",
-            cpu: "warning",
-            disk: "warning",
-            blocker_software: "blocker",
-            unknown_software: "info",
-        };
         try {
-            await Promise.all(
-                Object.entries(c.weights).map(([code, weight]) =>
-                    apiFetch(`/api/v1/criteria/weights/${code}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            weight,
-                            severity: severities[code] || "info",
-                            is_active: true,
-                        }),
-                    })
-                )
-            );
-        } catch (e) {
-            console.warn("saveCriteria:", e);
-        }
+            setError("");
+            const res = await apiFetch("/api/v1/criteria/groups/" + encodeURIComponent(group), {
+                method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(c)
+            });
+            if (!res.ok) throw new Error("Политика не сохранена: проверьте права и значения");
+            await loadPolicies();
+            setPolicyMessage("Политика группы сохранена. Для нового исторического снимка загрузите аудит повторно.");
+        } catch(e) { setError(e.message); }
     };
 
     /* ─────────── экспорт / scan ─────────── */
@@ -466,7 +499,11 @@ function App() {
                     [
                         r.id, r.user, r.department, r.status, r.wave,
                         r.blockers.map((b) => b.text).join(" | "),
-                    ].join(";")
+                    ].map(value => {
+                        let text = String(value ?? "");
+                        if (/^[=+@-]/.test(text)) text = "'" + text;
+                        return '"' + text.replaceAll('"', '""') + '"';
+                    }).join(";")
                 )
                 .join("\n")
         );
@@ -485,7 +522,6 @@ function App() {
         );
     }
 
-    const canEdit = me?.role === "admin" || me?.role === "analyst";
     const isAdmin = me?.role === "admin"; // 🆕 Отдельный флаг для админа
 
     return (
@@ -553,6 +589,7 @@ function App() {
                 </header>
 
                 <div className="page" key={page}>
+                    {error && <div className="error" role="alert">{error}</div>}
                     {page === "dashboard" && (
                         <>
                             <section className="hero">
@@ -586,6 +623,11 @@ function App() {
                                         ))}
                                     </div>
                                     <div className="hero-criteria">
+                                        <label>Предпросмотр политики группы
+                                            <select className="search" value={group} onChange={e => setGroup(e.target.value)}>
+                                                {policies.map(p => <option key={p.group_name}>{p.group_name}</option>)}
+                                            </select>
+                                        </label>
                                         <Criteria
                                             c={c}
                                             set={setC}
@@ -697,10 +739,10 @@ function App() {
                     )}
 
                     {page === "criteria" && (
-                        <section className="content-grid">
+                        <div>{groupSelector}<section className="content-grid">
                             <Panel
-                                title="Критерии оборудования"
-                                hint="Пороги берутся из выбранной ОС. Изменения сразу пересчитывают статусы."
+                                title={"Критерии: " + group}
+                                hint="Предпросмотр текущей политики. История аудитов сохраняет результат на момент загрузки."
                             >
                                 <Criteria
                                     c={c}
@@ -716,9 +758,9 @@ function App() {
                                 title="Справочник совместимости ПО"
                                 hint="Каталог решений и аналогов из базы данных"
                             >
-                                <SoftwareCatalog />
+                                <SoftwareCatalog compatibility={rawCompat} rules={policies.find(p => p.group_name === group)?.rules || []} targetOs={targetOs} group={group} />
                             </Panel>
-                        </section>
+                        </section></div>
                     )}
 
                     {page === "waves" && (
@@ -814,10 +856,11 @@ function App() {
                     {page === "ml" && <MLAnalytics fleet={fleet} onPick={setSelected} />}
 
                     {page === "nlp-rules" && (
-                        <RulesAndNLPTab
+                        <div>{groupSelector}<RulesAndNLPTab key={group}
+                            group={group}
                             canEdit={canEdit}
-                            onRulesChanged={(newRules) => setCustomRules(newRules)}
-                        />
+                            onRulesChanged={(rules) => setPolicies(prev => prev.map(p => p.group_name === group ? {...p, rules} : p))}
+                        /></div>
                     )}
 
                     {/* 🆕 Вкладка управления пользователями (только для админа) */}

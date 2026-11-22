@@ -51,3 +51,14 @@ app.include_router(api_router)
 @app.get("/health", tags=["system"])
 def healthcheck():
     return {"status": "ok", "service": "alrosa-audit-backend"}
+
+@app.get("/ready", tags=["system"])
+def readiness():
+    from sqlalchemy import text
+    from fastapi.responses import JSONResponse
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "reachable"}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unavailable", "database": "unreachable"})
